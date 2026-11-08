@@ -332,7 +332,7 @@ input{font:inherit;color:inherit}
 .recline .inp{min-width:0;flex:1}
 .inp.sel{padding:0 12px}
 .qbtn.keep small{display:block}
-.quick{grid-template-columns:repeat(4,1fr)}
+.quick{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
 
 
 .photo{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--card);border-radius:22px;padding:14px 18px;box-shadow:var(--sh);border:2px dashed var(--g500);transition:.18s}
@@ -439,6 +439,7 @@ input{font:inherit;color:inherit}
   .qic{width:42px;height:42px;border-radius:14px}
   .qbtn b{font-size:14px}
   .qbtn small{display:none}
+  .quick .qbtn:last-child:nth-child(odd){grid-column:1/-1}
   .qbtn.keep small{display:block}
   .row{flex-direction:column}
   .row>*,.row>.w2{flex:none;width:100%}
@@ -529,6 +530,7 @@ const IC={
   target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  tag:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
   camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/>',
   shield:'<path d="M20 13c0 5-3.5 7.5-7.7 8.9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'
 };
@@ -552,11 +554,23 @@ const CATS={
     {id:'f_income',n:'Другой доход',i:'wallet'},{id:'f_gift',n:'Подарок',i:'gift'}]
 };
 const TR={id:'tr',n:'Из магазина домой',i:'swap'},SV={id:'sv',n:'В подушку',i:'shield'},SW={id:'sw',n:'Из подушки',i:'shield'};
-const ALLCATS=Object.values(CATS).flat().concat([TR,SV,SW]);
-const catById=id=>ALLCATS.find(c=>c.id===id)||{n:'Другое',i:'dots'};
+const BASE_CATS=JSON.parse(JSON.stringify(CATS));
+let ALLC=null;
+function applyCats(){
+  const nm=S.catNames||{},hid=S.catHidden||{},ex=S.catExtra||{};
+  for(const k of Object.keys(BASE_CATS))CATS[k]=BASE_CATS[k].filter(c=>!hid[c.id]).map(c=>({...c,n:nm[c.id]||c.n})).concat((ex[k]||[]).map(c=>({...c})));
+  ALLC=null;
+}
+function allCats(){
+  if(ALLC)return ALLC;
+  const nm=S.catNames||{},ex=S.catExtra||{};
+  return ALLC=[...Object.values(BASE_CATS).flat().map(c=>({...c,n:nm[c.id]||c.n})),...Object.values(ex).flat(),TR,SV,SW];
+}
+const catById=id=>allCats().find(c=>c.id===id)||{n:'Другое',i:'dots'};
+const empName=id=>((S.staff||[]).find(e=>e.id===id)||{n:''}).n;
 const catOf=t=>t.type==='tr'?TR:t.type==='sv'?SV:t.type==='sw'?SW:(CATS[(t.type==='in'?'in_':'out_')+t.space].find(c=>c.id===t.cat)||catById(t.cat));
-const LIM_SHOP=['fuel','utility','pack','s_other'];
-const LIM_FAM=['food','fun','sport','tutor','house','health','clothes','beauty','gifts','car','phone','f_other'];
+const limShop=()=>CATS.out_shop.map(c=>c.id).filter(id=>!['purchase','sellers','loader','rent','tax'].includes(id));
+const limFam=()=>CATS.out_family.map(c=>c.id).filter(id=>!['credit','univ'].includes(id));
 const SPLITS=['#04381F','#0A6A3A','#12B866','#6FD9A0','#B3E6CB','#CDF53A'];
 
 /* ---------- даты и числа ---------- */
@@ -604,7 +618,18 @@ function defaults(){
       {id:'drink',n:'Вода и напитки',d:14},
       {id:'frozen',n:'Заморозка: овощи, торты',d:14}],
     sellersPct:2,
-    cushion:{start:500000,goal:1000000,months:12},
+    cushion:{start:0,goal:1000000,months:12},
+    staff:[
+      {id:'lena',n:'Лена Богатова',role:'Старший продавец',kind:'sell',on:true},
+      {id:'lyuba',n:'Любовь Свиридова',role:'Продавец',kind:'sell',on:true},
+      {id:'tonya',n:'Тоня',role:'Выкладка товара',kind:'sell',on:true},
+      {id:'natasha',n:'Наташа',role:'Выкладка товара',kind:'sell',on:true},
+      {id:'anzhela',n:'Анжела',role:'Выкладка товара',kind:'sell',on:true},
+      {id:'yulya',n:'Юля',role:'Продавец (ранее)',kind:'sell',on:false},
+      {id:'denis',n:'Денис',role:'Разгрузка',kind:'load',on:true},
+      {id:'oleg',n:'Олег',role:'Разгрузка',kind:'load',on:true},
+      {id:'andrey',n:'Андрей',role:'Разгрузка',kind:'load',on:true}],
+    catNames:{},catHidden:{},catExtra:{},
     rec:[
       {id:'r1',n:'Аренда, две точки',amt:75000,space:'shop',pt:0,cat:'rent',per:'m',day:null,mon:null},
       {id:'r2',n:'Грузчик',amt:25000,space:'shop',pt:0,cat:'loader',per:'m',day:null,mon:null},
@@ -782,6 +807,7 @@ const TITLES={home:'Финансы',ops:'Операции',reports:'Отчёты
 const PERIODS=[['day','Сегодня'],['week','Неделя'],['month','Месяц']];
 
 function render(keepScroll=true){
+  applyCats();
   const y=window.scrollY,t=today();
   const todayN=S.tx.filter(x=>x.date===ymd(t)).length;
   const scopeSeg=UI.view==='settings'?'':`<div class="seg scroll">${[['all','Всё'],['shop','Магазин'],['p1',S.pts[0]],['p2',S.pts[1]],['family','Семья']].map(([v,l])=>`<button data-act="scope" data-v="${v}" class="${UI.scope===v?'on':''}">${esc(l)}</button>`).join('')}</div>`;
@@ -886,7 +912,7 @@ function viewHome(){
     const row=(ic,title,val,sub)=>`<div class="crow"><span class="rico">${icon(ic,20)}</span><span class="rmid"><div class="rn">${title}</div><div class="rs">${sub}</div></span><span class="ra num">${val}</span></div>`;
     control=`<div class="card"><div class="card-h"><div><h3>Контроль магазина</h3><p>${rangeLabel(P)}</p></div></div>
       ${row('cart','Закупка от выручки',pr==null?'—':pr+'%',money(c.purchase)+' накладных')}
-      ${row('user','Зарплата продавцов',money(acc),`${S.sellersPct}% от выручки · выплачено ${money(c.sellers)}${acc>c.sellers?' · к выплате '+money(acc-c.sellers):''}`)}
+      ${row('user','Зарплата сотрудников',money(c.sellers),`${S.sellersPct}% от выручки = ${money(acc)}`)}
       ${row('clock','Долг поставщикам',money(debtAll),'накладные без оплаты')}
     </div>`;
   }
@@ -906,7 +932,7 @@ function viewHome(){
   /* лимиты */
   const lsc=sc==='all'?'all':isShop(sc)?'shop':'family';
   const [ma,mb]=range('month'),ms=summarize(ymd(ma),ymd(mb),lsc);
-  const catsIn=lsc==='all'?[...LIM_SHOP,...LIM_FAM]:lsc==='shop'?LIM_SHOP:LIM_FAM;
+  const catsIn=lsc==='all'?[...limShop(),...limFam()]:lsc==='shop'?limShop():limFam();
   const limIds=catsIn.filter(id=>S.limits[id]>0);
   const lims=limIds.map(id=>({id,lim:S.limits[id],used:ms.cats[id]||0})).sort((a,b)=>b.used/b.lim-a.used/a.lim).slice(0,6);
   const totLim=limIds.reduce((n,id)=>n+S.limits[id],0),totUsed=limIds.reduce((n,id)=>n+(ms.cats[id]||0),0);
@@ -947,6 +973,7 @@ function viewHome(){
   const q=(cls,ic,b,s,pr)=>`<button class="qbtn ${cls}" data-act="add" data-p="${pr}"><span class="qic">${icon(ic,24)}</span><span><b>${b}</b><small>${s}</small></span><span class="qplus">${icon('plus',18,2.2)}</span></button>`;
   const quick=`<div class="quick">
     ${q('','cart','Накладная','закупка товара','buy')}
+    <button class="qbtn" data-act="sal-open"><span class="qic">${icon('user',24)}</span><span><b>Зарплаты</b><small>за день, по людям</small></span><span class="qplus">${icon('plus',18,2.2)}</span></button>
     ${q('','store','Расход магазина','аренда, бензин…','shopout')}
     ${q('','house','Расход семьи','продукты, дом…','fam')}
     ${q('','swap','Забрала домой','из магазина','home')}
@@ -980,7 +1007,7 @@ function opRow(t,showDate=true){
   else{sign=t.type==='in'?'+':'−';cls=t.type==='in'?'in':''}
   const tag=neutral?'':`<span class="tag">${t.space==='shop'?esc(ptName(t.pt)):'Семья'}</span>`;
   const debt=t.paid===false?'<span class="tag debt">в долг</span>':'';
-  const parts=[t.cat==='purchase'&&t.sup?supName(t.sup):'',t.note,showDate?dayLabel(t.date):''].filter(Boolean);
+  const parts=[t.cat==='purchase'&&t.sup?supName(t.sup):'',t.emp?empName(t.emp):'',t.note,showDate?dayLabel(t.date):''].filter(Boolean);
   return `<button class="row" data-act="edit" data-id="${t.id}">
     <span class="rico ${neutral?'tr':''}">${icon(c.i,22)}</span>
     <span class="rmid"><div class="rn">${esc(c.n)}</div><div class="rs">${tag}${debt}${esc(parts.join(' · '))}</div></span>
@@ -1051,6 +1078,9 @@ function viewReports(){
   }
   const bySup=(sc==='family')?'':`<div class="card"><div class="card-h"><div><h3>Накладные по поставщикам</h3><p>${MN[mi]}, сколько закуплено</p></div></div>${catList(c.sup,c.purchase||1,'В этом месяце накладных нет',id=>supName(id),()=>'cart')}</div>`;
   const rcs=S.recon.slice().reverse().slice(0,8);
+  const byEmp={};S.tx.forEach(t=>{if(t.emp&&t.type==='out'&&t.date>=a&&t.date<=b&&sc2(t,sc))byEmp[t.emp]=(byEmp[t.emp]||0)+t.amt});
+  const empTot=Object.values(byEmp).reduce((n,x)=>n+x,0);
+  const empCard=empTot&&sc!=='family'?`<div class="card"><div class="card-h"><div><h3>Зарплаты по сотрудникам</h3><p>${MN[mi]}: всего ${money(empTot)}</p></div></div>${catList(byEmp,empTot,'',id=>{const e=S.staff.find(x=>x.id===id);return empName(id)+(e&&e.role?' · '+e.role:'')},()=>'user')}</div>`:'';
   const reconCard=rcs.length?`<div class="card"><div class="card-h"><div><h3>Сверки кассы</h3><p>Разница между записями и реальными деньгами</p></div></div>${rcs.map(r=>`<div class="crow"><span class="rico">${icon('wallet',20)}</span><span class="rmid"><div class="rn">${r.pot==='shop'?'Магазин':'Дом'} · ${dayLabel(r.date)}</div><div class="rs">${r.diff==null?'первая сверка':'по записям было '+money(r.expected)}</div></span><span class="ra num" style="${r.diff<0?'color:var(--red)':r.diff>0?'color:var(--g500)':''}">${r.diff==null?money(r.counted):(r.diff>0?'+':'')+money(r.diff)}</span></div>`).join('')}</div>`:'';
   return `
   <div class="monthchips">${list.map(k=>{const [yy,mm]=k.split('-').map(Number);return `<button data-act="repmonth" data-v="${k}" class="${UI.repMonth===k?'on':''}">${MN[mm-1]}${yy!==today().getFullYear()?' '+yy:''}</button>`}).join('')}</div>
@@ -1071,6 +1101,7 @@ function viewReports(){
     </div>
   </div>
   ${pts}
+  ${empCard}
   ${reconCard}
   <div class="twocol">
     <div class="card"><div class="card-h"><div><h3>Куда ушли деньги</h3><p>${MN[mi]}, по категориям</p></div></div>${catList(c.cats,c.out,'В этом месяце расходов нет')}</div>
@@ -1101,7 +1132,7 @@ function viewSettings(){
         <div class="field"><label>Цель</label><input class="inp" inputmode="numeric" data-cu="goal" value="${S.cushion.goal}"></div>
         <div class="field"><label>За сколько месяцев собрать</label><input class="inp" inputmode="numeric" data-cu="months" value="${S.cushion.months}"></div>
       </div>
-      ${extra.plan}${extra.sync}${extra.pin}
+      ${extra.plan}${extra.staff}${extra.cats}${extra.sync}${extra.pin}
       <div class="card">
         <div class="card-h"><div><h3>Поставщики</h3><p>Накладные записываются по ним</p></div></div>
         ${S.sup.map(s=>`<div class="limrow"><input class="inp" style="flex:1;width:auto;text-align:left" data-sup="${s.id}" data-k="n" value="${esc(s.n)}"><select class="inp sel" style="width:116px" data-sup="${s.id}" data-k="d"><option value="0" ${!s.d?'selected':''}>Сразу</option><option value="7" ${s.d===7?'selected':''}>7 дней</option><option value="14" ${s.d===14?'selected':''}>14 дней</option><option value="30" ${s.d===30?'selected':''}>30 дней</option></select><button class="xbtn" style="width:42px;height:42px" data-act="del-sup" data-id="${s.id}" aria-label="Удалить">${icon('x',18,2)}</button></div>`).join('')}
@@ -1118,7 +1149,7 @@ function viewSettings(){
       </div>
       <div class="card">
         <div class="card-h"><div><h3>Лимиты на месяц</h3><p>Пустое поле — лимит не нужен</p></div></div>
-        ${limBlock('Магазин',LIM_SHOP)}${limBlock('Семья',LIM_FAM)}
+        ${limBlock('Магазин',limShop())}${limBlock('Семья',limFam())}
       </div>
       <div class="card">
         <div class="card-h"><div><h3>Данные</h3><p>Хранятся на этом устройстве</p></div></div>
@@ -1148,12 +1179,12 @@ const PRESETS={
 function openModal(p,id){
   if(id){
     const t=S.tx.find(x=>x.id===id);if(!t)return;
-    M={id,type:t.type==='sw'?'sv':t.type,sw:t.type==='sw',space:t.space,pt:t.pt||0,cat:t.cat,sup:t.sup||null,who:t.who||null,also:false,paid:t.paid!==false,amt:String(t.amt).replace('.',','),date:t.date,note:t.note||''};
+    M={id,type:t.type==='sw'?'sv':t.type,sw:t.type==='sw',space:t.space,pt:t.pt||0,cat:t.cat,sup:t.sup||null,who:t.who||null,emp:t.emp||null,also:false,paid:t.paid!==false,amt:String(t.amt).replace('.',','),date:t.date,note:t.note||''};
   }else{
     let base=PRESETS[p]||PRESETS.rev1;
     if(p==='rev1'&&UI.scope==='family')base=PRESETS.fam;
     if(p==='rev1'&&UI.scope==='p2')base=PRESETS.rev2;
-    M={id:null,sw:false,sup:null,paid:true,who:null,also:S.plan.save>0&&remainingPlan()>0,...base,amt:'',date:ymd(today()),note:''};
+    M={id:null,sw:false,sup:null,paid:true,who:null,emp:null,also:S.plan.save>0&&remainingPlan()>0,...base,amt:'',date:ymd(today()),note:''};
   }
   drawModal();
 }
@@ -1180,6 +1211,7 @@ function drawModal(keep){
     if(M.cat==='purchase')right+=`<div class="lbl" style="margin-top:6px">Поставщик</div><div class="chips">${S.sup.map(s=>`<button data-act="m-sup" data-v="${s.id}" class="${M.sup===s.id?'on':''}">${esc(s.n)}</button>`).join('')}</div>
       <div class="mseg s2 small"><button data-act="m-paid" data-v="1" class="${M.paid?'on':''}">Оплачено</button><button data-act="m-paid" data-v="0" class="${!M.paid?'on':''}">В долг</button></div>
       ${!M.paid?`<div class="rs" style="margin-top:-2px">Оплатить до ${(()=>{const d=addDays(parse(M.date),(supOf(M.sup)||{}).d||14);return d.getDate()+' '+MG[d.getMonth()]})()}</div>`:''}`;
+    if(M.cat==='sellers'||M.cat==='loader'){const kd=M.cat==='loader'?'load':'sell',lst=S.staff.filter(e=>e.kind===kd&&(e.on!==false||M.emp===e.id));right+=`<div class="lbl" style="margin-top:6px">Кому</div><div class="chips">${lst.map(e=>`<button data-act="m-emp" data-v="${e.id}" class="${M.emp===e.id?'on':''}">${esc(e.n)}</button>`).join('')}</div>`}
     if(M.cat==='sellers'){const h=sellersHint();right+=`<button class="btn" data-act="m-sugg" data-v="${h}">Подставить начисленные ${S.sellersPct}%: ${money(h)}</button>`}
   }
   el.innerHTML=`
@@ -1201,7 +1233,7 @@ function drawModal(keep){
         <input class="inp" id="noteIn" placeholder="${tp==='tr'?'Например: на карту':tp==='in'?'Необязательно':'Что купили, у кого'}" value="${esc(M.note)}" maxlength="80" autocomplete="off">
       </div>
     </div>
-    <div class="sh-foot">${M.id?`<button class="delbtn" data-act="m-del" aria-label="Удалить">${icon('trash',24)}</button>`:''}<button class="cta" id="saveBtn" data-act="m-save">Записать</button></div>
+    <div class="sh-foot">${M.id?`<button class="delbtn" data-act="m-del" aria-label="Удалить">${icon('trash',24)}</button><button class="delbtn" style="background:var(--g100);color:var(--g800)" data-act="m-dup" aria-label="Дублировать">${icon('plus',24,2.2)}</button>`:''}<button class="cta" id="saveBtn" data-act="m-save">Записать</button></div>
   </div></div>`;
   document.body.style.overflow='hidden';
   const nb=el.querySelector('.sh-body');if(nb&&keep)nb.scrollTop=st;
@@ -1253,9 +1285,10 @@ function doSave(){
   const tp=M.type==='sv'?(M.sw?'sw':'sv'):M.type;
   const rec={type:tp,space:M.space,pt:(tp==='in'||tp==='out')&&M.space==='shop'?M.pt:0,cat:tp==='sw'?'sw':M.cat,amt:Math.round(n*100)/100,date:M.date,note:($('#noteIn')?.value??M.note).trim()};
   if(tp==='out'&&M.space==='family'&&M.who)rec.who=M.who;
+  if(tp==='out'&&(M.cat==='sellers'||M.cat==='loader')&&M.emp)rec.emp=M.emp;
   if(tp==='out'&&M.cat==='purchase'){rec.sup=M.sup;rec.paid=M.paid;if(!M.paid)rec.due=ymd(addDays(parse(M.date),(supOf(M.sup)||{}).d||14))}
   let msg,tx;
-  if(M.id){tx=S.tx.find(x=>x.id===M.id);for(const k of ['sup','paid','due','who'])delete tx[k];Object.assign(tx,rec);lastAdded=null;msg='Изменения сохранены'}
+  if(M.id){tx=S.tx.find(x=>x.id===M.id);for(const k of ['sup','paid','due','who','emp'])delete tx[k];Object.assign(tx,rec);lastAdded=null;msg='Изменения сохранены'}
   else{tx={id:uid(),ts:Date.now(),...rec};S.tx.push(tx);lastAdded=tx.id;
     const sign=tp==='in'||tp==='sw'?'+':'−';msg=`Записано · ${catOf(tx).n} ${sign}${money(tx.amt)}`}
   if(tp==='tr'&&!M.id&&M.also){const rp=remainingPlan();if(rp>0)S.tx.push({id:uid(),ts:Date.now()+1,date:M.date,type:'sv',space:'family',pt:0,cat:'sv',amt:Math.min(rp,rec.amt),note:'Из «домой»'})}
@@ -1419,6 +1452,28 @@ function saveClose(){
   save();Cd=null;drawClose();render();toast(`День записан: ${n} зап.`);
 }
 
+/* ---------- зарплаты за день ---------- */
+let Sd=null;
+function lastPay(emp){const f=S.tx.filter(t=>t.emp===emp&&t.cat==='sellers').sort((a,b)=>a.date<b.date?1:-1)[0];return f?f.amt:null}
+function openSal(){Sd={date:ymd(today()),v:{}};drawSal()}
+function drawSal(){
+  const el=$('#modal');if(!Sd){el.innerHTML='';document.body.style.overflow='';return}
+  const t=ymd(today()),y=ymd(addDays(today(),-1)),rows=S.staff.filter(e=>e.kind==='sell'&&e.on!==false);
+  el.innerHTML=`<div class="ov"><div class="sheet" style="width:min(560px,100%)"><div class="sh-head"><h3>Зарплаты за день</h3><button class="xbtn" data-act="sal-close" aria-label="Закрыть">${icon('x',22,2)}</button></div>
+   <div class="sh-body" style="grid-template-columns:minmax(0,1fr)"><div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div class="dates"><button data-act="sal-date" data-v="${t}" class="${Sd.date===t?'on':''}">Сегодня</button><button data-act="sal-date" data-v="${y}" class="${Sd.date===y?'on':''}">Вчера</button></div>
+    ${rows.length?rows.map(e=>{const last=lastPay(e.id);return `<div class="cdrow"><span class="rico">${icon('user',22)}</span><div class="cdmid"><label>${esc(e.n)} · ${esc(e.role||'')}</label><input class="inp" inputmode="decimal" data-sd="${e.id}" value="${esc(Sd.v[e.id]||'')}" placeholder="${last?fmt(last):'0'}" autocomplete="off"></div>${last?`<button class="chipbtn" data-act="sal-fill" data-k="${e.id}" data-v="${last}">${fmt(last)}</button>`:''}</div>`}).join(''):'<div class="empty"><b>Нет сотрудников</b>Добавьте их в настройках.</div>'}
+    <div class="note" style="margin:0">Впишите, сколько заплатили каждому. Пустые поля пропускаются. Серая сумма, это что было в прошлый раз.</div>
+   </div></div><div class="sh-foot"><button class="cta" data-act="sal-save">Записать</button></div></div></div>`;
+  document.body.style.overflow='hidden';
+}
+function saveSal(){
+  let n=0;const now=Date.now();
+  for(const e of S.staff){const v=numVal(Sd.v[e.id]);if(v>0){S.tx.push({id:uid(),ts:now+n,date:Sd.date,type:'out',space:'shop',pt:0,cat:'sellers',emp:e.id,amt:v,note:''});n++}}
+  if(!n){toast('Впишите хотя бы одну сумму');return}
+  save();Sd=null;drawSal();render();toast(`Записано зарплат: ${n}`);
+}
+
 /* ---------- PIN ---------- */
 const LS_PIN='raiskiy-fin-pin-v1';
 const pinHash=p=>{let x=5381;for(const c of p+'|rg')x=((x<<5)+x+c.charCodeAt(0))|0;return String(x)};
@@ -1546,7 +1601,15 @@ function settingsExtra(){
   const pin=`<div class="card"><div class="card-h"><div><h3>Защита от чужих глаз</h3><p>PIN при открытии приложения</p></div><span class="pill ${getPin()?'':'mute'}">${getPin()?'включён':'выключен'}</span></div>
     <div class="btns">${getPin()?`<button class="btn" data-act="pin-change">Сменить PIN</button><button class="btn red" data-act="pin-off">Убрать PIN</button>`:`<button class="btn" data-act="pin-set">Поставить PIN</button>`}</div>
     <div class="note">PIN прячет экран от посторонних. Это не шифрование данных.</div></div>`;
-  return{plan,sync,pin};
+  const CORE=new Set(['purchase','sellers','loader','fuel','rev','s_other','f_other','si_other','f_income']);
+  const staff=`<div class="card"><div class="card-h"><div><h3>Сотрудники</h3><p>Зарплаты записываются на них</p></div></div>
+    ${S.staff.map(e=>`<div class="recrow"><input class="inp" data-st="${e.id}" data-k="n" value="${esc(e.n)}" placeholder="Имя"><div class="recline"><input class="inp" data-st="${e.id}" data-k="role" value="${esc(e.role||'')}" placeholder="Должность"><select class="inp sel" style="max-width:132px;flex:none" data-st="${e.id}" data-k="kind"><option value="sell" ${e.kind==='sell'?'selected':''}>Магазин</option><option value="load" ${e.kind==='load'?'selected':''}>Разгрузка</option></select></div><div class="recline"><button class="btn ${e.on!==false?'btn-dark':''}" style="flex:1;height:44px" data-act="st-toggle" data-id="${e.id}">${e.on!==false?'Работает':'Не работает'}</button><button class="xbtn" style="width:44px;height:44px;flex:none" data-act="del-st" data-id="${e.id}" aria-label="Удалить">${icon('x',18,2)}</button></div></div>`).join('')}
+    <button class="btn" style="width:100%;margin-top:10px" data-act="add-st">${icon('plus',20,2.2)}Добавить сотрудника</button></div>`;
+  const groups=[['out_shop','Расходы магазина'],['in_shop','Доходы магазина'],['out_family','Расходы семьи'],['in_family','Доходы семьи']];
+  const cats=`<div class="card"><div class="card-h"><div><h3>Категории</h3><p>Переименуйте, добавьте свои или уберите лишние</p></div></div>
+    ${groups.map(([k,t])=>`<div class="sub-h">${t}</div>${CATS[k].map(c=>`<div class="limrow"><span class="rico">${icon(c.i,20)}</span><input class="inp" style="flex:1;width:auto;text-align:left;height:46px" data-cat="${c.id}" value="${esc(c.n)}">${CORE.has(c.id)?'<span style="width:42px;flex:none"></span>':`<button class="xbtn" style="width:42px;height:42px;flex:none" data-act="del-cat" data-id="${c.id}" data-g="${k}" aria-label="Убрать">${icon('x',18,2)}</button>`}</div>`).join('')}<button class="btn" style="width:100%;margin-top:6px" data-act="add-cat" data-g="${k}">${icon('plus',20,2.2)}Добавить категорию</button>`).join('')}
+    <div class="note">Убранная категория пропадает из выбора, старые записи остаются. Базовые категории (накладная, зарплата, разгрузка, бензин, выручка, прочее) убрать нельзя, но можно переименовать.</div></div>`;
+  return{plan,staff,cats,sync,pin};
 }
 
 /* ---------- вход, экран приветствия, кабинет семьи ---------- */
@@ -1579,6 +1642,7 @@ async function cabLoad(){
 }
 function cabRender(){
   const root=$('#root');
+  if(CAB.v){S.catNames=CAB.v.catNames||{};S.catHidden=CAB.v.catHidden||{};S.catExtra=CAB.v.catExtra||{};applyCats()}
   if(CAB.err){root.innerHTML=`<div class="cabwrap"><div class="card"><div class="empty"><b>Не получилось открыть</b>${esc(CAB.err)}</div><div class="btns"><button class="btn" data-act="cab-reload">Обновить</button><button class="btn" data-act="cab-logout">Ввести другой код</button></div></div></div>`;return}
   const v=CAB.v,T=today(),ms=ymd(new Date(T.getFullYear(),T.getMonth(),1));
   const tx=(v.tx||[]).filter(x=>x.type==='out');
@@ -1586,7 +1650,7 @@ function cabRender(){
   const spent=mon.reduce((n,x)=>n+x.amt,0);
   const dl=dim(T.getFullYear(),T.getMonth())-T.getDate()+1;
   const byCat={};mon.forEach(x=>{byCat[x.cat]=(byCat[x.cat]||0)+x.amt});
-  const lims=Object.entries(v.limits||{}).filter(([id,l])=>l>0&&LIM_FAM.includes(id)).map(([id,l])=>({id,lim:l,used:byCat[id]||0})).sort((a,b)=>b.used/b.lim-a.used/a.lim);
+  const lims=Object.entries(v.limits||{}).filter(([id,l])=>l>0&&limFam().includes(id)).map(([id,l])=>({id,lim:l,used:byCat[id]||0})).sort((a,b)=>b.used/b.lim-a.used/a.lim);
   const totLim=lims.reduce((n,l)=>n+l.lim,0),totUsed=lims.reduce((n,l)=>n+l.used,0);
   const plan=v.plan||{},budget=(plan.home||0)-(plan.save||0);
   let heroLabel,heroVal,heroSub,pc,over;
@@ -1613,7 +1677,7 @@ function cabRender(){
 /* ---------- события ---------- */
 document.addEventListener('click',e=>{
   const ov=e.target.classList&&e.target.classList.contains('ov')?e.target:null;
-  if(ov&&ov.closest('#modal')){if(Cd){Cd=null;drawClose()}else if(Rc){Rc=null;drawRecon()}else{M=null;drawModal()}return}
+  if(ov&&ov.closest('#modal')){if(Sd){Sd=null;drawSal()}else if(Cd){Cd=null;drawClose()}else if(Rc){Rc=null;drawRecon()}else{M=null;drawModal()}return}
   const el=e.target.closest('[data-act]');
   if(!el){hideTip();return}
   const act=el.dataset.act,v=el.dataset.v;
@@ -1630,7 +1694,7 @@ document.addEventListener('click',e=>{
     case 'm-type':M.note=$('#noteIn')?.value??M.note;M.type=v;normType();drawModal(true);break;
     case 'm-space':M.note=$('#noteIn')?.value??M.note;M.space=v;normType();drawModal(true);break;
     case 'm-pt':M.note=$('#noteIn')?.value??M.note;M.pt=+v;drawModal(true);break;
-    case 'm-cat':M.note=$('#noteIn')?.value??M.note;M.cat=v;if(v!=='purchase'){M.sup=null;M.paid=true}drawModal(true);break;
+    case 'm-cat':M.note=$('#noteIn')?.value??M.note;M.cat=v;if(v!=='sellers'&&v!=='loader')M.emp=null;if(v!=='purchase'){M.sup=null;M.paid=true}drawModal(true);break;
     case 'm-sup':M.note=$('#noteIn')?.value??M.note;M.sup=v;M.paid=!((supOf(v)||{}).d>0);drawModal(true);break;
     case 'm-paid':M.note=$('#noteIn')?.value??M.note;M.paid=v==='1';drawModal(true);break;
     case 'm-sw':M.note=$('#noteIn')?.value??M.note;M.sw=v==='1';drawModal(true);break;
@@ -1653,6 +1717,16 @@ document.addEventListener('click',e=>{
     case 'add-rec':S.rec.push({id:'r'+uid(),n:'Новый платёж',amt:0,space:'shop',pt:0,cat:'s_other',per:'m',day:null,mon:null});saveCfg();render();break;
     case 'del-rec':ask('Удалить платёж?','Он пропадёт из напоминаний. Уже записанные оплаты останутся.','Удалить',()=>{S.rec=S.rec.filter(r=>r.id!==el.dataset.id);saveCfg();render()});break;
     case 'close-day':openClose();break;
+    case 'sal-open':openSal();break;
+    case 'sal-close':Sd=null;drawSal();break;
+    case 'sal-date':Sd.date=v;drawSal();break;
+    case 'sal-fill':Sd.v[el.dataset.k]=String(el.dataset.v);drawSal();break;
+    case 'sal-save':saveSal();break;
+    case 'add-cat':{const g=el.dataset.g;(S.catExtra[g]=S.catExtra[g]||[]).push({id:'x'+uid(),n:'Новая категория',i:'tag'});saveCfg();render();break}
+    case 'del-cat':ask('Убрать категорию?','Она пропадёт из выбора. Старые записи с ней останутся.','Убрать',()=>{const id=el.dataset.id,g=el.dataset.g;if((S.catExtra[g]||[]).some(c=>c.id===id))S.catExtra[g]=S.catExtra[g].filter(c=>c.id!==id);else S.catHidden[id]=true;saveCfg();render()});break;
+    case 'add-st':S.staff.push({id:'e'+uid(),n:'Новый сотрудник',role:'',kind:'sell',on:true});saveCfg();render();break;
+    case 'del-st':ask('Удалить сотрудника?','Записи с его именем останутся, но без имени. Лучше отметить «Не работает».','Удалить',()=>{S.staff=S.staff.filter(e=>e.id!==el.dataset.id);saveCfg();render()});break;
+    case 'st-toggle':{const e=S.staff.find(x=>x.id===el.dataset.id);if(e){e.on=e.on===false;saveCfg();render()}break}
     case 'cd-close':Cd=null;drawClose();break;
     case 'cd-date':Cd.date=v;drawClose();break;
     case 'cd-fill':Cd.v[el.dataset.k]=String(el.dataset.v);drawClose();break;
@@ -1662,6 +1736,8 @@ document.addEventListener('click',e=>{
     case 'rc-close':Rc=null;drawRecon();break;
     case 'rc-pot':Rc.val=$('#rcVal')?.value??'';Rc.pot=v;drawRecon();break;
     case 'rc-save':saveRecon();break;
+    case 'm-emp':M.note=$('#noteIn')?.value??M.note;M.emp=M.emp===v?null:v;drawModal(true);break;
+    case 'm-dup':M.note=$('#noteIn')?.value??M.note;M.id=null;M.date=ymd(today());drawModal(true);toast('Копия записи: измените и нажмите «Записать»');break;
     case 'm-also':M.note=$('#noteIn')?.value??M.note;M.also=!M.also;drawModal(true);break;
         case 'sync-on':if(S.demo){toast('Сначала нажмите «Начать с нуля»');break}S.sync={owner:rndCode(),ver:0};S.members=[{id:'family',name:'Семья',limit:0,code:rndCode()}];saveCfg();render();toast('Синхронизация включена');break;
     case 'sync-off':ask('Отключить синхронизацию?','Данные останутся на этом устройстве, но кабинеты семьи перестанут обновляться.','Отключить',()=>{S.sync={owner:'',ver:0};persist();render()});break;
@@ -1692,6 +1768,7 @@ document.addEventListener('input',e=>{
   else if(e.target.id==='noteIn'&&M)M.note=e.target.value;
   else if(e.target.dataset&&e.target.dataset.cd&&Cd)Cd.v[e.target.dataset.cd]=e.target.value;
   else if(e.target.id==='rcVal'&&Rc)Rc.val=e.target.value;
+  else if(e.target.dataset&&e.target.dataset.sd&&Sd)Sd.v[e.target.dataset.sd]=e.target.value;
 });
 const numVal=v=>{const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:0};
 document.addEventListener('change',e=>{
@@ -1712,6 +1789,8 @@ document.addEventListener('change',e=>{
     else if(d.k==='mon')r.mon=t.value?+t.value:null;
     saveCfg();
   }
+  else if(d.st){const e=S.staff.find(x=>x.id===d.st);if(e){if(d.k==='n')e.n=t.value.trim()||'Сотрудник';else if(d.k==='role')e.role=t.value.trim();else e.kind=t.value;saveCfg()}}
+  else if(d.cat){const nm=t.value.trim();const ex=Object.values(S.catExtra||{}).flat().find(c=>c.id===d.cat);if(ex)ex.n=nm||ex.n;else{S.catNames=S.catNames||{};if(nm)S.catNames[d.cat]=nm;else delete S.catNames[d.cat]}saveCfg()}
   else if(t.id==='planHome'){S.plan.home=Math.max(0,Math.round(numVal(t.value)));saveCfg()}
   else if(t.id==='planSave'){S.plan.save=Math.max(0,Math.round(numVal(t.value)));saveCfg()}
   else if(t.id==='file'&&t.files[0]){importJSON(t.files[0]);t.value=''}
