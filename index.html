@@ -546,7 +546,7 @@ const CATS={
   out_family:[
     {id:'food',n:'Продукты',i:'basket'},{id:'credit',n:'Кредитка',i:'card'},{id:'fun',n:'Досуг, маркетплейс',i:'sparkle'},
     {id:'sport',n:'Тренировки детям',i:'trend'},{id:'tutor',n:'Репетиторы',i:'list'},{id:'univ',n:'Учёба дочери',i:'building'},
-    {id:'house',n:'Дом и ЖКХ',i:'house'},{id:'health',n:'Здоровье',i:'heart'},{id:'clothes',n:'Одежда',i:'shirt'},
+    {id:'house',n:'Дом и ЖКХ',i:'house'},{id:'health',n:'Здоровье',i:'heart'},{id:'clothes',n:'Одежда',i:'shirt'},{id:'beauty',n:'Красота',i:'sparkle'},{id:'gifts',n:'Подарки, праздники',i:'gift'},
     {id:'car',n:'Транспорт',i:'car'},{id:'phone',n:'Связь, подписки',i:'phone'},{id:'f_other',n:'Прочее',i:'dots'}],
   in_family:[
     {id:'f_income',n:'Другой доход',i:'wallet'},{id:'f_gift',n:'Подарок',i:'gift'}]
@@ -556,7 +556,7 @@ const ALLCATS=Object.values(CATS).flat().concat([TR,SV,SW]);
 const catById=id=>ALLCATS.find(c=>c.id===id)||{n:'Другое',i:'dots'};
 const catOf=t=>t.type==='tr'?TR:t.type==='sv'?SV:t.type==='sw'?SW:(CATS[(t.type==='in'?'in_':'out_')+t.space].find(c=>c.id===t.cat)||catById(t.cat));
 const LIM_SHOP=['fuel','utility','pack','s_other'];
-const LIM_FAM=['food','fun','sport','tutor','house','health','clothes','car','phone','f_other'];
+const LIM_FAM=['food','fun','sport','tutor','house','health','clothes','beauty','gifts','car','phone','f_other'];
 const SPLITS=['#04381F','#0A6A3A','#12B866','#6FD9A0','#B3E6CB','#CDF53A'];
 
 /* ---------- даты и числа ---------- */
@@ -1554,8 +1554,7 @@ let CAB=null;
 function showWelcome(){
   $('#root').innerHTML=`<div class="cabwrap" style="padding-top:7vh">
     <div class="cabtop" style="flex-direction:column;text-align:center;gap:10px"><div class="logo-mark" style="width:68px;height:68px;border-radius:21px">${icon('leaf',36,1.9)}</div><div><h1>Райский уголок</h1><p class="date">Финансы</p></div></div>
-    <div class="card"><div class="field" style="margin-bottom:10px"><label>Код входа</label><input class="inp codein" id="loginCode" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false"></div><div class="lockerr" id="loginErr"></div><button class="cta" style="width:100%;flex:none" data-act="login">Войти</button></div>
-    <button class="btn" data-act="login-demo">Посмотреть пример без входа</button></div>`;
+    <div class="card"><div class="field" style="margin-bottom:10px"><label>Код входа</label><input class="inp codein" id="loginCode" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false"></div><div class="lockerr" id="loginErr"></div><button class="cta" style="width:100%;flex:none" data-act="login">Войти</button></div></div>`;
 }
 async function doLogin(){
   const inp=$('#loginCode'),err=$('#loginErr');if(!inp)return;
@@ -1672,7 +1671,6 @@ document.addEventListener('click',e=>{
     case 'regen-fam':{const go=()=>{S.members=[{id:'family',name:'Семья',limit:0,code:rndCode()}];saveCfg();render()};if(S.members[0])ask('Сменить код семьи?','Старый код перестанет работать, нужно будет отправить новый.','Сменить',go);else go();break}
     case 'logout':ask('Выйти на этом устройстве?','Данные на сервере останутся. На этом устройстве всё будет стёрто, войти снова можно по коду.','Выйти',()=>{try{localStorage.removeItem(LS_DATA);localStorage.removeItem(LS_UI);localStorage.removeItem(LS_PIN)}catch(e){}location.reload()});break;
     case 'login':doLogin();break;
-    case 'login-demo':persist();startApp();break;
     case 'cab-logout':try{localStorage.removeItem(LS_FAM)}catch(e){}location.href=baseUrl();break;
     case 'cab-cushion':S.cabinet.cushion=!S.cabinet.cushion;saveCfg();render();break;
     case 'pin-set':setPinFlow();break;
