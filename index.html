@@ -332,6 +332,30 @@ input{font:inherit;color:inherit}
 .qbtn.keep small{display:block}
 .quick{grid-template-columns:repeat(3,1fr)}
 
+
+.photo{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--card);border-radius:22px;padding:14px 18px;box-shadow:var(--sh);border:2px dashed var(--g500);transition:.18s}
+.photo:hover{background:var(--g50)}
+.photo .qic{background:var(--g800);color:var(--lime)}
+.photo b{display:block;font-size:15.5px;font-weight:800;letter-spacing:-.015em}
+.photo small{color:var(--muted);font-size:13px;font-weight:600;display:block;margin-top:2px}
+.loadbox{display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 10px;text-align:center}
+.loadbox b{font-size:18px;font-weight:800}.loadbox span{color:var(--muted);font-weight:600}
+.spin{width:44px;height:44px;border-radius:50%;border:5px solid var(--g100);border-top-color:var(--g800);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.thumb{width:100%;max-height:200px;object-fit:cover;border-radius:18px}
+.irow{min-width:0;display:flex;gap:12px;background:var(--g50);border-radius:20px;padding:14px;border:2px solid transparent}
+.irow.warn{border-color:#F4B9B3;background:#FFF7F6}
+.irow.off{opacity:.45}
+.irow .imid{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.irow .inp{height:46px;border-radius:14px;font-size:15px;background:#fff;min-width:0}
+.iline{display:flex;gap:8px;min-width:0}.iline .inp{flex:1;min-width:0;width:auto}
+.irow .inp{max-width:100%}
+.chk{display:grid;place-items:center;flex:none;padding-top:8px;cursor:pointer}
+.chk input{position:absolute;opacity:0}
+.chk span{width:28px;height:28px;border-radius:9px;border:2px solid #B8C4BC;background:#fff;display:block;position:relative}
+.chk input:checked+span{background:var(--g800);border-color:var(--g800)}
+.chk input:checked+span::after{content:"";position:absolute;left:8px;top:3px;width:7px;height:13px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg)}
+
 /* ---------- адаптив ---------- */
 @media (max-width:1180px){
   .app{grid-template-columns:1fr;padding:16px 16px 120px;gap:0}
@@ -404,6 +428,7 @@ input{font:inherit;color:inherit}
 <div id="tip" class="tip"></div>
 <div id="toast" class="toast"></div>
 <input type="file" id="file" accept="application/json,.json" hidden>
+<input type="file" id="photoFile" accept="image/*" hidden>
 
 <script>
 /* =========================================================
@@ -455,6 +480,7 @@ const IC={
   target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/>',
   shield:'<path d="M20 13c0 5-3.5 7.5-7.7 8.9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'
 };
 const icon=(n,s=22,w=1.8)=>`<svg class="ic" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${IC[n]||''}</svg>`;
@@ -464,7 +490,7 @@ const CATS={
   out_shop:[
     {id:'purchase',n:'Накладная (закупка)',i:'cart'},{id:'sellers',n:'Зарплата продавцов',i:'user'},{id:'loader',n:'Грузчик',i:'package'},
     {id:'rent',n:'Аренда',i:'building'},{id:'tax',n:'Налог, патент',i:'percent'},{id:'utility',n:'Отопление, свет',i:'zap'},
-    {id:'fuel',n:'Бензин',i:'car'},{id:'markdown',n:'Уценка',i:'trend'},{id:'spoil',n:'Выкинули, списание',i:'trash'},
+    {id:'fuel',n:'Бензин',i:'car'},
     {id:'pack',n:'Упаковка',i:'package'},{id:'s_other',n:'Прочее',i:'dots'}],
   in_shop:[
     {id:'rev',n:'Выручка за день',i:'banknote'},{id:'si_other',n:'Другое',i:'dots'}],
@@ -480,7 +506,7 @@ const TR={id:'tr',n:'Из магазина домой',i:'swap'},SV={id:'sv',n:'
 const ALLCATS=Object.values(CATS).flat().concat([TR,SV,SW]);
 const catById=id=>ALLCATS.find(c=>c.id===id)||{n:'Другое',i:'dots'};
 const catOf=t=>t.type==='tr'?TR:t.type==='sv'?SV:t.type==='sw'?SW:(CATS[(t.type==='in'?'in_':'out_')+t.space].find(c=>c.id===t.cat)||catById(t.cat));
-const LIM_SHOP=['fuel','utility','markdown','spoil','pack','s_other'];
+const LIM_SHOP=['fuel','utility','pack','s_other'];
 const LIM_FAM=['food','fun','sport','tutor','house','health','clothes','car','phone','f_other'];
 const SPLITS=['#04381F','#0A6A3A','#12B866','#6FD9A0','#B3E6CB','#CDF53A'];
 
@@ -538,7 +564,7 @@ function defaults(){
       {id:'r5',n:'Патент, точка 2 (часть 2)',amt:40000,space:'shop',pt:2,cat:'tax',per:'y',day:null,mon:null},
       {id:'r6',n:'Кредитка',amt:2500,space:'family',pt:0,cat:'credit',per:'m',day:null,mon:null},
       {id:'r7',n:'Учёба дочери',amt:20000,space:'family',pt:0,cat:'univ',per:'m',day:null,mon:null}],
-    rpaid:{},limits:{fuel:25000},demo:false};
+    rpaid:{},limits:{fuel:25000},ai:{url:'',token:''},demo:false};
 }
 let S=loadData();
 const UI=Object.assign({view:'home',scope:'all',period:'month',opsPeriod:'month',opsType:'all',q:'',repMonth:null},loadUI());
@@ -569,8 +595,6 @@ function genDemo(){
     if(i<0){
       add(d,'in','shop',1,'rev',Math.round(R(22000,38000)*f/50)*50);
       add(d,'in','shop',2,'rev',Math.round(R(13000,24000)*f/50)*50);
-      add(d,'out','shop',rnd()<.5?1:2,'markdown',R(500,2500));
-      if(rnd()<.45)add(d,'out','shop',rnd()<.5?1:2,'spoil',R(700,3200));
       add(d,'out','shop',0,'fuel',R(700,1300));
       if(dom===3)add(d,'out','shop',0,'loader',25000);
       if(dom===25)add(d,'out','shop',0,'rent',75000,'Две точки');
@@ -652,7 +676,6 @@ function summarize(a,b,scope){
     else{
       r.out+=t.amt;r.cats[t.cat]=(r.cats[t.cat]||0)+t.amt;
       if(t.cat==='purchase'){r.purchase+=t.amt;if(t.paid===false)r.debt+=t.amt;if(t.sup)r.sup[t.sup]=(r.sup[t.sup]||0)+t.amt}
-      if(t.cat==='markdown'||t.cat==='spoil')r.loss+=t.amt;
       if(t.cat==='sellers')r.sellers+=t.amt;
     }
   }
@@ -803,13 +826,12 @@ function viewHome(){
   /* контроль магазина */
   let control='';
   if(shop||sc==='all'){
-    const rev=c.rev,pr=rev?Math.round(c.purchase/rev*100):null,lr=rev?(c.loss/rev*100).toFixed(1).replace('.',','):null;
+    const rev=c.rev,pr=rev?Math.round(c.purchase/rev*100):null;
     const acc=Math.round(rev*S.sellersPct/100);
     const debtAll=S.tx.filter(t=>t.type==='out'&&t.cat==='purchase'&&t.paid===false&&sc2(t,sc)).reduce((n,t)=>n+t.amt,0);
     const row=(ic,title,val,sub)=>`<div class="crow"><span class="rico">${icon(ic,20)}</span><span class="rmid"><div class="rn">${title}</div><div class="rs">${sub}</div></span><span class="ra num">${val}</span></div>`;
     control=`<div class="card"><div class="card-h"><div><h3>Контроль магазина</h3><p>${rangeLabel(P)}</p></div></div>
       ${row('cart','Накладные (закупка)',money(c.purchase),pr==null?'нет выручки за период':`${pr}% от выручки`)}
-      ${row('trend','Уценка и списания',money(c.loss),lr==null?'нет выручки за период':`${lr}% от выручки`)}
       ${row('user','Зарплата продавцов',money(acc),`${S.sellersPct}% от выручки · выплачено ${money(c.sellers)}${acc>c.sellers?' · к выплате '+money(acc-c.sellers):''}`)}
       ${row('clock','Долг поставщикам',money(debtAll),'накладные без оплаты')}
     </div>`;
@@ -878,7 +900,8 @@ function viewHome(){
     ${q('','swap','Забрала домой','из магазина','home')}
   </div>`;
 
-  return `${quick}
+  const photoBtn=`<button class="photo" data-act="photo"><span class="qic">${icon('camera',26)}</span><span><b>Сфотографировать накладную или тетрадь</b><small>Приложение само прочитает фото и разложит по записям. Вам останется проверить.</small></span></button>`;
+  return `${quick}${photoBtn}
   <div class="bar-tools"><div class="seg flat">${PERIODS.map(([v,l])=>`<button data-act="period" data-v="${v}" class="${P===v?'on':''}">${l}</button>`).join('')}</div><span class="range">${esc(scopeLabel())} · ${rangeLabel(P)}</span></div>
   <div class="grid"><div class="stats">${stats}</div>${donut}${chart}
     <div class="row">${control}${pays}${limits}</div>
@@ -1034,6 +1057,12 @@ function viewSettings(){
       <div class="card">
         <div class="card-h"><div><h3>Лимиты на месяц</h3><p>Пустое поле — лимит не нужен</p></div></div>
         ${limBlock('Магазин',LIM_SHOP)}${limBlock('Семья',LIM_FAM)}
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h3>Распознавание фото</h3><p>Накладные и страницы тетради</p></div><span class="pill ${S.ai.url?'':'mute'}">${S.ai.url?'подключено':'не подключено'}</span></div>
+        <div class="field"><label>Адрес сервиса</label><input class="inp" id="aiUrl" placeholder="https://…supabase.co/functions/v1/parse-photo" value="${esc(S.ai.url)}" autocomplete="off"></div>
+        <div class="field"><label>Ключ доступа</label><input class="inp" id="aiToken" type="password" value="${esc(S.ai.token)}" autocomplete="off"></div>
+        <div class="note">Пока не подключено, на главной можно нажать «Сфотографировать» и посмотреть пример. Как подключить: файл ai/README.md.</div>
       </div>
       <div class="card">
         <div class="card-h"><div><h3>Данные</h3><p>Хранятся на этом устройстве</p></div></div>
@@ -1232,10 +1261,145 @@ function importJSON(file){
   r.readAsText(file);
 }
 
+
+/* ---------- фото: накладные и тетрадь ---------- */
+let R=null;
+const ALLKEYS=[
+  ['Расход магазина',CATS.out_shop.map(c=>['out','shop',c.id,c.n])],
+  ['Доход магазина',CATS.in_shop.map(c=>['in','shop',c.id,c.n])],
+  ['Расход семьи',CATS.out_family.map(c=>['out','family',c.id,c.n])],
+  ['Доход семьи',CATS.in_family.map(c=>['in','family',c.id,c.n])],
+  ['Другое',[['tr','shop','tr','Забрала домой'],['sv','family','sv','В подушку']]]
+];
+async function shrink(file,max=1600){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
+    const k=Math.min(1,max/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL('image/jpeg',.82);
+  }finally{URL.revokeObjectURL(url)}
+}
+function cleanItems(arr){
+  const out=[],T=ymd(today());
+  for(const x of (Array.isArray(arr)?arr:[]).slice(0,60)){
+    const amt=Math.round(parseFloat(String(x.amount).replace(',','.'))*100)/100;
+    if(!(amt>0))continue;
+    const type={expense:'out',income:'in',home:'tr',save:'sv'}[x.kind]||'out';
+    let space=x.space==='family'?'family':'shop',cat=x.category;
+    if(type==='tr')space='shop';
+    if(type==='sv')space='family';
+    if(type==='out'||type==='in'){
+      const list=CATS[(type==='in'?'in_':'out_')+space];
+      if(!list.some(c=>c.id===cat))cat=type==='in'?(space==='shop'?'si_other':'f_income'):(space==='shop'?'s_other':'f_other');
+    }else cat=type;
+    let pt=space==='shop'&&(type==='out'||type==='in')&&[0,1,2].includes(+x.point)?+x.point:0;
+    if(type==='in'&&space==='shop'&&pt===0)pt=1;
+    out.push({on:true,type,space,pt,cat,amt,
+      sup:cat==='purchase'&&supOf(x.supplier)?x.supplier:null,
+      paid:!(cat==='purchase'&&x.paid===false),
+      date:/^\d{4}-\d{2}-\d{2}$/.test(x.date||'')&&x.date<=T?x.date:T,
+      note:String(x.note||'').slice(0,80),low:x.confidence==='low'});
+  }
+  return out;
+}
+const itemBad=it=>it.type==='in'&&it.space==='shop'&&!(it.pt>0)?'выберите точку':(it.cat==='purchase'&&!it.sup)?'выберите поставщика':'';
+async function startPhoto(file){
+  const my=R={state:'loading',items:[],file};drawImport();
+  if(!S.ai.url){R.state='setup';drawImport();return}
+  try{
+    const dataUrl=await shrink(file);R.thumb=dataUrl;
+    const ctrl=new AbortController(),to=setTimeout(()=>ctrl.abort(),90000);
+    const lite=a=>a.map(c=>({id:c.id,n:c.n}));
+    const resp=await fetch(S.ai.url,{method:'POST',headers:{'Content-Type':'application/json','x-app-token':S.ai.token||''},signal:ctrl.signal,
+      body:JSON.stringify({image:dataUrl.split(',')[1],today:ymd(today()),pts:S.pts,sup:S.sup.map(s=>({id:s.id,n:s.n,d:s.d})),
+        cats:{out_shop:lite(CATS.out_shop),in_shop:lite(CATS.in_shop),out_family:lite(CATS.out_family),in_family:lite(CATS.in_family)}})});
+    clearTimeout(to);
+    if(resp.status===401)throw new Error('Неверный ключ доступа. Проверьте его в настройках.');
+    if(!resp.ok)throw new Error('Сервис ответил ошибкой ('+resp.status+')');
+    const j=await resp.json();
+    if(R!==my)return;
+    R.items=cleanItems(j.items);R.doc=j.doc||'';R.warning=j.warning||'';
+    R.state=R.items.length?'review':'empty';
+  }catch(e){if(R!==my)return;R.state='error';R.msg=e.name==='AbortError'?'Сервис долго не отвечает. Попробуйте ещё раз.':(e.message&&e.message!=='Failed to fetch'?e.message:'Не удалось связаться с сервисом. Проверьте интернет и адрес в настройках.')}
+  if(R===my)drawImport();
+}
+function demoPhoto(){
+  const T=ymd(today());
+  R={state:'review',thumb:null,doc:'invoice',warning:'Это пример: так будет выглядеть результат после распознавания.',items:cleanItems([
+    {kind:'expense',space:'shop',point:0,category:'purchase',supplier:'veg',amount:28450,date:T,note:'Накладная 1847: картофель, морковь, яблоки',paid:true},
+    {kind:'expense',space:'shop',point:0,category:'purchase',supplier:'frozen',amount:12300,date:T,note:'Накладная 552: заморозка',paid:false},
+    {kind:'income',space:'shop',point:1,category:'rev',amount:34800,date:T,note:'Выручка'},
+    {kind:'income',space:'shop',point:2,category:'rev',amount:19250,date:T,note:'Выручка'},
+    {kind:'expense',space:'shop',point:0,category:'fuel',amount:900,date:T,note:'Бензин'},
+    {kind:'home',amount:12000,date:T,note:'Забрала домой'},
+    {kind:'expense',space:'family',point:0,category:'food',amount:2100,date:T,note:'Магазин у дома',confidence:'low'}])};
+  drawImport();
+}
+function drawImport(keep){
+  const el=$('#modal');if(!R){el.innerHTML='';document.body.style.overflow='';return}
+  const body=el.querySelector('.sh-body'),st=body?body.scrollTop:0;
+  let inner='',foot='';
+  if(R.state==='loading')inner=`<div class="loadbox"><div class="spin"></div><b>Читаю фото…</b><span>Обычно это занимает несколько секунд</span></div>`;
+  else if(R.state==='setup')inner=`<div class="trinfo"><span class="qic">${icon('camera',24)}</span><span>Распознавание ещё не подключено. Чтобы приложение читало фото само, один раз подключите сервис: Настройки → «Распознавание фото» (инструкция в файле ai/README.md).</span></div>
+    <button class="btn" data-act="photo-demo">Посмотреть, как это будет выглядеть</button>`;
+  else if(R.state==='error')inner=`<div class="trinfo"><span class="qic">${icon('x',24)}</span><span>${esc(R.msg)}</span></div><button class="btn btn-dark" data-act="photo-retry">Попробовать ещё раз</button>`;
+  else if(R.state==='empty')inner=`<div class="trinfo"><span class="qic">${icon('search',24)}</span><span>Не нашёл на фото операций.${R.warning?' '+esc(R.warning):''} Попробуйте сфотографировать ближе и при хорошем свете.</span></div>`;
+  else{
+    const n=R.items.filter(i=>i.on&&!itemBad(i)).length;
+    const keyOf=i=>`${i.type}|${i.space}|${i.cat}`;
+    inner=`${R.thumb?`<img class="thumb" src="${R.thumb}" alt="">`:''}
+    <div class="rs" style="margin-bottom:4px">Проверьте суммы и категории. В записи попадёт только то, что отмечено галочкой.${R.warning?`<br><b>${esc(R.warning)}</b>`:''}</div>
+    ${R.items.map((it,i)=>{
+      const bad=itemBad(it),shopTx=(it.type==='in'||it.type==='out')&&it.space==='shop';
+      const ptO=it.type==='in'?[[1,S.pts[0]],[2,S.pts[1]]]:[[0,'Общее'],[1,S.pts[0]],[2,S.pts[1]]];
+      return `<div class="irow ${it.on?'':'off'} ${bad||it.low?'warn':''}">
+        <label class="chk"><input type="checkbox" data-ii="${i}" data-k="on" ${it.on?'checked':''}><span></span></label>
+        <div class="imid">
+          <select class="inp sel" data-ii="${i}" data-k="key">${ALLKEYS.map(([g,l])=>`<optgroup label="${g}">${l.map(([t,sp,id,n])=>`<option value="${t}|${sp}|${id}" ${keyOf(it)===`${t}|${sp}|${id}`?'selected':''}>${n}</option>`).join('')}</optgroup>`).join('')}</select>
+          ${it.cat==='purchase'?`<div class="iline"><select class="inp sel" data-ii="${i}" data-k="sup"><option value="">Поставщик?</option>${S.sup.map(s=>`<option value="${s.id}" ${it.sup===s.id?'selected':''}>${esc(s.n)}</option>`).join('')}</select><select class="inp sel" style="max-width:120px" data-ii="${i}" data-k="paid"><option value="1" ${it.paid?'selected':''}>Оплачено</option><option value="0" ${!it.paid?'selected':''}>В долг</option></select></div>`:''}
+          ${shopTx?`<select class="inp sel" data-ii="${i}" data-k="pt">${ptO.map(([v,l])=>`<option value="${v}" ${it.pt===v?'selected':''}>${esc(l)}</option>`).join('')}</select>`:''}
+          <div class="iline"><input class="inp" inputmode="decimal" data-ii="${i}" data-k="amt" value="${String(it.amt).replace('.',',')}"><input class="inp" type="date" max="${ymd(today())}" data-ii="${i}" data-k="date" value="${it.date}"></div>
+          <input class="inp" data-ii="${i}" data-k="note" value="${esc(it.note)}" placeholder="Заметка" maxlength="80">
+          ${bad?`<div class="rs" style="color:var(--red);font-weight:700">${bad}</div>`:it.low?`<div class="rs" style="color:var(--red);font-weight:700">Не уверен, проверьте</div>`:''}
+        </div></div>`}).join('')}`;
+    foot=`<button class="cta" data-act="photo-save" ${n?'':'disabled'}>${n?`Записать: ${n}`:'Отметьте записи'}</button>`;
+  }
+  el.innerHTML=`<div class="ov"><div class="sheet" role="dialog" aria-modal="true" style="width:min(640px,100%)">
+    <div class="sh-head"><h3>Распознавание фото</h3><button class="xbtn" data-act="photo-close" aria-label="Закрыть">${icon('x',22,2)}</button></div>
+    <div class="sh-body" style="grid-template-columns:minmax(0,1fr);gap:12px"><div style="display:flex;flex-direction:column;gap:12px;min-width:0">${inner}</div></div>
+    ${foot?`<div class="sh-foot">${foot}</div>`:''}</div></div>`;
+  document.body.style.overflow='hidden';
+  const nb=el.querySelector('.sh-body');if(nb&&keep)nb.scrollTop=st;
+}
+function importEdit(t){
+  const it=R&&R.items[+t.dataset.ii];if(!it)return false;
+  const k=t.dataset.k;
+  if(k==='on'){it.on=t.checked;drawImport(true)}
+  else if(k==='key'){const [ty,sp,id]=t.value.split('|');it.type=ty;it.space=sp;it.cat=id;if(ty==='tr'||ty==='sv'||sp==='family')it.pt=0;else if(ty==='in'&&!(it.pt>0))it.pt=1;if(id!=='purchase'){it.sup=null;it.paid=true}drawImport(true)}
+  else if(k==='sup'){it.sup=t.value||null;const d=(supOf(it.sup)||{}).d;it.paid=!(d>0);drawImport(true)}
+  else if(k==='paid'){it.paid=t.value==='1';drawImport(true)}
+  else if(k==='pt'){it.pt=+t.value;drawImport(true)}
+  else if(k==='amt'){const n=parseFloat(String(t.value).replace(/\s/g,'').replace(',','.'));it.amt=n>0?Math.round(n*100)/100:it.amt;t.value=String(it.amt).replace('.',',')}
+  else if(k==='date'){if(t.value)it.date=t.value}
+  else if(k==='note')it.note=t.value;
+  return true;
+}
+function savePhoto(){
+  const ok=R.items.filter(i=>i.on&&!itemBad(i));
+  for(const it of ok){
+    const tx={id:uid(),date:it.date,type:it.type,space:it.space,pt:it.pt||0,cat:it.cat,amt:it.amt,note:it.note};
+    if(it.type==='out'&&it.cat==='purchase'){tx.sup=it.sup;tx.paid=it.paid;if(!it.paid)tx.due=ymd(addDays(parse(it.date),(supOf(it.sup)||{}).d||14))}
+    S.tx.push(tx);
+  }
+  save();R=null;drawImport();render();toast(`Записано операций: ${ok.length}`);
+}
+
 /* ---------- события ---------- */
 document.addEventListener('click',e=>{
   const ov=e.target.classList&&e.target.classList.contains('ov')?e.target:null;
-  if(ov&&ov.closest('#modal')){M=null;drawModal();return}
+  if(ov&&ov.closest('#modal')){if(R){R=null;drawImport()}else{M=null;drawModal()}return}
   const el=e.target.closest('[data-act]');
   if(!el){hideTip();return}
   const act=el.dataset.act,v=el.dataset.v;
@@ -1274,6 +1438,11 @@ document.addEventListener('click',e=>{
     case 'del-sup':ask('Удалить поставщика?','Накладные с ним останутся в записях.','Удалить',()=>{S.sup=S.sup.filter(s=>s.id!==el.dataset.id);save();render()});break;
     case 'add-rec':S.rec.push({id:'r'+uid(),n:'Новый платёж',amt:0,space:'shop',pt:0,cat:'s_other',per:'m',day:null,mon:null});save();render();break;
     case 'del-rec':ask('Удалить платёж?','Он пропадёт из напоминаний. Уже записанные оплаты останутся.','Удалить',()=>{S.rec=S.rec.filter(r=>r.id!==el.dataset.id);save();render()});break;
+    case 'photo':$('#photoFile').click();break;
+    case 'photo-demo':demoPhoto();break;
+    case 'photo-retry':if(R&&R.file)startPhoto(R.file);break;
+    case 'photo-close':R=null;drawImport();break;
+    case 'photo-save':savePhoto();break;
     case 'exp-csv':exportCSV();break;
     case 'exp-json':exportJSON();break;
     case 'imp-json':$('#file').click();break;
@@ -1305,6 +1474,10 @@ document.addEventListener('change',e=>{
     else if(d.k==='mon')r.mon=t.value?+t.value:null;
     save();
   }
+  else if(d.ii!==undefined){importEdit(t)}
+  else if(t.id==='photoFile'&&t.files[0]){startPhoto(t.files[0]);t.value=''}
+  else if(t.id==='aiUrl'){S.ai.url=t.value.trim();save();render()}
+  else if(t.id==='aiToken'){S.ai.token=t.value.trim();save()}
   else if(t.id==='file'&&t.files[0]){importJSON(t.files[0]);t.value=''}
 });
 document.addEventListener('keydown',e=>{
@@ -1317,7 +1490,7 @@ document.addEventListener('keydown',e=>{
     else if(e.key===','||e.key==='.')key(',');
     else if(e.key==='Backspace')key('del');
     else if(e.key==='Enter'){e.preventDefault();saveTx()}
-  }else if(e.key==='Escape')closeAsk();
+  }else if(e.key==='Escape'){if($('#confirm .cf'))closeAsk();else if(R){R=null;drawImport()}}
 });
 /* подсказка над столбцами */
 const tipEl=$('#tip');
