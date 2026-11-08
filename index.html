@@ -398,6 +398,12 @@ input{font:inherit;color:inherit}
 .track.ondark i{background:var(--lime)}
 .track.ondark i.over{background:#FF6B5E}
 
+
+.codebox{background:var(--g50);border-radius:20px;padding:16px;margin-bottom:12px}
+.codebox small{display:block;color:var(--muted);font-weight:700;font-size:12.5px;margin-bottom:4px}
+.codebox b{display:block;font-size:19px;letter-spacing:.04em;word-break:break-all;margin-bottom:12px}
+.codein{font-size:19px;letter-spacing:.06em;text-transform:uppercase;text-align:center;font-weight:700}
+
 /* ---------- адаптив ---------- */
 @media (max-width:1180px){
   .app{grid-template-columns:1fr;padding:16px 16px 120px;gap:0}
@@ -606,7 +612,7 @@ function defaults(){
       {id:'r5',n:'Патент, точка 2 (часть 2)',amt:40000,space:'shop',pt:2,cat:'tax',per:'y',day:null,mon:null},
       {id:'r6',n:'Кредитка',amt:2500,space:'family',pt:0,cat:'credit',per:'m',day:null,mon:null},
       {id:'r7',n:'Учёба дочери',amt:20000,space:'family',pt:0,cat:'univ',per:'m',day:null,mon:null}],
-    rpaid:{},limits:{fuel:25000},ai:{url:'',token:''},plan:{home:0,save:0},members:[],cabinet:{cushion:true},potBase:{shop:null,family:null},recon:[],del:[],cfgTs:0,sync:{owner:'',ver:0},demo:false};
+    rpaid:{},limits:{fuel:25000},plan:{home:0,save:0},members:[],cabinet:{cushion:true},potBase:{shop:null,family:null},recon:[],del:[],cfgTs:0,sync:{owner:'',ver:0},demo:false};
 }
 let S=loadData();
 const UI=Object.assign({view:'home',scope:'all',period:'month',opsPeriod:'month',opsType:'all',q:'',repMonth:null},loadUI());
@@ -1173,7 +1179,6 @@ function drawModal(keep){
     if(M.cat==='purchase')right+=`<div class="lbl" style="margin-top:6px">Поставщик</div><div class="chips">${S.sup.map(s=>`<button data-act="m-sup" data-v="${s.id}" class="${M.sup===s.id?'on':''}">${esc(s.n)}</button>`).join('')}</div>
       <div class="mseg s2 small"><button data-act="m-paid" data-v="1" class="${M.paid?'on':''}">Оплачено</button><button data-act="m-paid" data-v="0" class="${!M.paid?'on':''}">В долг</button></div>
       ${!M.paid?`<div class="rs" style="margin-top:-2px">Оплатить до ${(()=>{const d=addDays(parse(M.date),(supOf(M.sup)||{}).d||14);return d.getDate()+' '+MG[d.getMonth()]})()}</div>`:''}`;
-    if(tp==='out'&&M.space==='family'&&S.members.length)right+=`<div class="lbl" style="margin-top:6px">Кто потратил</div><div class="chips"><button data-act="m-who" data-v="" class="${!M.who?'on':''}">Я</button>${S.members.map(m=>`<button data-act="m-who" data-v="${m.id}" class="${M.who===m.id?'on':''}">${esc(m.name)}</button>`).join('')}</div>`;
     if(M.cat==='sellers'){const h=sellersHint();right+=`<button class="btn" data-act="m-sugg" data-v="${h}">Подставить начисленные ${S.sellersPct}%: ${money(h)}</button>`}
   }
   el.innerHTML=`
@@ -1311,141 +1316,6 @@ function importJSON(file){
     }catch(e){toast('Это не файл копии данных')}
   };
   r.readAsText(file);
-}
-
-
-/* ---------- фото: накладные и тетрадь ---------- */
-let R=null;
-const ALLKEYS=[
-  ['Расход магазина',CATS.out_shop.map(c=>['out','shop',c.id,c.n])],
-  ['Доход магазина',CATS.in_shop.map(c=>['in','shop',c.id,c.n])],
-  ['Расход семьи',CATS.out_family.map(c=>['out','family',c.id,c.n])],
-  ['Доход семьи',CATS.in_family.map(c=>['in','family',c.id,c.n])],
-  ['Другое',[['tr','shop','tr','Забрала домой'],['sv','family','sv','В подушку']]]
-];
-async function shrink(file,max=1600){
-  const url=URL.createObjectURL(file);
-  try{
-    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
-    const k=Math.min(1,max/Math.max(img.width,img.height));
-    const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
-    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    return c.toDataURL('image/jpeg',.82);
-  }finally{URL.revokeObjectURL(url)}
-}
-function cleanItems(arr){
-  const out=[],T=ymd(today());
-  for(const x of (Array.isArray(arr)?arr:[]).slice(0,60)){
-    const amt=Math.round(parseFloat(String(x.amount).replace(',','.'))*100)/100;
-    if(!(amt>0))continue;
-    const type={expense:'out',income:'in',home:'tr',save:'sv'}[x.kind]||'out';
-    let space=x.space==='family'?'family':'shop',cat=x.category;
-    if(type==='tr')space='shop';
-    if(type==='sv')space='family';
-    if(type==='out'||type==='in'){
-      const list=CATS[(type==='in'?'in_':'out_')+space];
-      if(!list.some(c=>c.id===cat))cat=type==='in'?(space==='shop'?'si_other':'f_income'):(space==='shop'?'s_other':'f_other');
-    }else cat=type;
-    let pt=space==='shop'&&(type==='out'||type==='in')&&[0,1,2].includes(+x.point)?+x.point:0;
-    if(type==='in'&&space==='shop'&&pt===0)pt=1;
-    out.push({on:true,type,space,pt,cat,amt,
-      sup:cat==='purchase'&&supOf(x.supplier)?x.supplier:null,
-      paid:!(cat==='purchase'&&x.paid===false),
-      date:/^\d{4}-\d{2}-\d{2}$/.test(x.date||'')&&x.date<=T?x.date:T,
-      note:String(x.note||'').slice(0,80),low:x.confidence==='low'});
-  }
-  return out;
-}
-const itemBad=it=>it.type==='in'&&it.space==='shop'&&!(it.pt>0)?'выберите точку':(it.cat==='purchase'&&!it.sup)?'выберите поставщика':'';
-async function startPhoto(file){
-  const my=R={state:'loading',items:[],file};drawImport();
-  if(!S.ai.url){R.state='setup';drawImport();return}
-  try{
-    const dataUrl=await shrink(file);R.thumb=dataUrl;
-    const ctrl=new AbortController(),to=setTimeout(()=>ctrl.abort(),90000);
-    const lite=a=>a.map(c=>({id:c.id,n:c.n}));
-    const resp=await fetch(S.ai.url,{method:'POST',headers:{'Content-Type':'application/json','x-app-token':S.ai.token||''},signal:ctrl.signal,
-      body:JSON.stringify({image:dataUrl.split(',')[1],today:ymd(today()),pts:S.pts,sup:S.sup.map(s=>({id:s.id,n:s.n,d:s.d})),
-        cats:{out_shop:lite(CATS.out_shop),in_shop:lite(CATS.in_shop),out_family:lite(CATS.out_family),in_family:lite(CATS.in_family)}})});
-    clearTimeout(to);
-    if(resp.status===401)throw new Error('Неверный ключ доступа. Проверьте его в настройках.');
-    if(!resp.ok)throw new Error('Сервис ответил ошибкой ('+resp.status+')');
-    const j=await resp.json();
-    if(R!==my)return;
-    R.items=cleanItems(j.items);R.doc=j.doc||'';R.warning=j.warning||'';
-    R.state=R.items.length?'review':'empty';
-  }catch(e){if(R!==my)return;R.state='error';R.msg=e.name==='AbortError'?'Сервис долго не отвечает. Попробуйте ещё раз.':(e.message&&e.message!=='Failed to fetch'?e.message:'Не удалось связаться с сервисом. Проверьте интернет и адрес в настройках.')}
-  if(R===my)drawImport();
-}
-function demoPhoto(){
-  const T=ymd(today());
-  R={state:'review',thumb:null,doc:'invoice',warning:'Это пример: так будет выглядеть результат после распознавания.',items:cleanItems([
-    {kind:'expense',space:'shop',point:0,category:'purchase',supplier:'veg',amount:28450,date:T,note:'Накладная 1847: картофель, морковь, яблоки',paid:true},
-    {kind:'expense',space:'shop',point:0,category:'purchase',supplier:'frozen',amount:12300,date:T,note:'Накладная 552: заморозка',paid:false},
-    {kind:'income',space:'shop',point:1,category:'rev',amount:34800,date:T,note:'Выручка'},
-    {kind:'income',space:'shop',point:2,category:'rev',amount:19250,date:T,note:'Выручка'},
-    {kind:'expense',space:'shop',point:0,category:'fuel',amount:900,date:T,note:'Бензин'},
-    {kind:'home',amount:12000,date:T,note:'Забрала домой'},
-    {kind:'expense',space:'family',point:0,category:'food',amount:2100,date:T,note:'Магазин у дома',confidence:'low'}])};
-  drawImport();
-}
-function drawImport(keep){
-  const el=$('#modal');if(!R){el.innerHTML='';document.body.style.overflow='';return}
-  const body=el.querySelector('.sh-body'),st=body?body.scrollTop:0;
-  let inner='',foot='';
-  if(R.state==='loading')inner=`<div class="loadbox"><div class="spin"></div><b>Читаю фото…</b><span>Обычно это занимает несколько секунд</span></div>`;
-  else if(R.state==='setup')inner=`<div class="trinfo"><span class="qic">${icon('camera',24)}</span><span>Распознавание ещё не подключено. Чтобы приложение читало фото само, один раз подключите сервис: Настройки → «Распознавание фото» (инструкция в файле ai/README.md).</span></div>
-    <button class="btn" data-act="photo-demo">Посмотреть, как это будет выглядеть</button>`;
-  else if(R.state==='error')inner=`<div class="trinfo"><span class="qic">${icon('x',24)}</span><span>${esc(R.msg)}</span></div><button class="btn btn-dark" data-act="photo-retry">Попробовать ещё раз</button>`;
-  else if(R.state==='empty')inner=`<div class="trinfo"><span class="qic">${icon('search',24)}</span><span>Не нашёл на фото операций.${R.warning?' '+esc(R.warning):''} Попробуйте сфотографировать ближе и при хорошем свете.</span></div>`;
-  else{
-    const n=R.items.filter(i=>i.on&&!itemBad(i)).length;
-    const keyOf=i=>`${i.type}|${i.space}|${i.cat}`;
-    inner=`${R.thumb?`<img class="thumb" src="${R.thumb}" alt="">`:''}
-    <div class="rs" style="margin-bottom:4px">Проверьте суммы и категории. В записи попадёт только то, что отмечено галочкой.${R.warning?`<br><b>${esc(R.warning)}</b>`:''}</div>
-    ${R.items.map((it,i)=>{
-      const bad=itemBad(it),shopTx=(it.type==='in'||it.type==='out')&&it.space==='shop';
-      const ptO=it.type==='in'?[[1,S.pts[0]],[2,S.pts[1]]]:[[0,'Общее'],[1,S.pts[0]],[2,S.pts[1]]];
-      return `<div class="irow ${it.on?'':'off'} ${bad||it.low?'warn':''}">
-        <label class="chk"><input type="checkbox" data-ii="${i}" data-k="on" ${it.on?'checked':''}><span></span></label>
-        <div class="imid">
-          <select class="inp sel" data-ii="${i}" data-k="key">${ALLKEYS.map(([g,l])=>`<optgroup label="${g}">${l.map(([t,sp,id,n])=>`<option value="${t}|${sp}|${id}" ${keyOf(it)===`${t}|${sp}|${id}`?'selected':''}>${n}</option>`).join('')}</optgroup>`).join('')}</select>
-          ${it.cat==='purchase'?`<div class="iline"><select class="inp sel" data-ii="${i}" data-k="sup"><option value="">Поставщик?</option>${S.sup.map(s=>`<option value="${s.id}" ${it.sup===s.id?'selected':''}>${esc(s.n)}</option>`).join('')}</select><select class="inp sel" style="max-width:120px" data-ii="${i}" data-k="paid"><option value="1" ${it.paid?'selected':''}>Оплачено</option><option value="0" ${!it.paid?'selected':''}>В долг</option></select></div>`:''}
-          ${shopTx?`<select class="inp sel" data-ii="${i}" data-k="pt">${ptO.map(([v,l])=>`<option value="${v}" ${it.pt===v?'selected':''}>${esc(l)}</option>`).join('')}</select>`:''}
-          <div class="iline"><input class="inp" inputmode="decimal" data-ii="${i}" data-k="amt" value="${String(it.amt).replace('.',',')}"><input class="inp" type="date" max="${ymd(today())}" data-ii="${i}" data-k="date" value="${it.date}"></div>
-          <input class="inp" data-ii="${i}" data-k="note" value="${esc(it.note)}" placeholder="Заметка" maxlength="80">
-          ${bad?`<div class="rs" style="color:var(--red);font-weight:700">${bad}</div>`:it.low?`<div class="rs" style="color:var(--red);font-weight:700">Не уверен, проверьте</div>`:''}
-        </div></div>`}).join('')}`;
-    foot=`<button class="cta" data-act="photo-save" ${n?'':'disabled'}>${n?`Записать: ${n}`:'Отметьте записи'}</button>`;
-  }
-  el.innerHTML=`<div class="ov"><div class="sheet" role="dialog" aria-modal="true" style="width:min(640px,100%)">
-    <div class="sh-head"><h3>Распознавание фото</h3><button class="xbtn" data-act="photo-close" aria-label="Закрыть">${icon('x',22,2)}</button></div>
-    <div class="sh-body" style="grid-template-columns:minmax(0,1fr);gap:12px"><div style="display:flex;flex-direction:column;gap:12px;min-width:0">${inner}</div></div>
-    ${foot?`<div class="sh-foot">${foot}</div>`:''}</div></div>`;
-  document.body.style.overflow='hidden';
-  const nb=el.querySelector('.sh-body');if(nb&&keep)nb.scrollTop=st;
-}
-function importEdit(t){
-  const it=R&&R.items[+t.dataset.ii];if(!it)return false;
-  const k=t.dataset.k;
-  if(k==='on'){it.on=t.checked;drawImport(true)}
-  else if(k==='key'){const [ty,sp,id]=t.value.split('|');it.type=ty;it.space=sp;it.cat=id;if(ty==='tr'||ty==='sv'||sp==='family')it.pt=0;else if(ty==='in'&&!(it.pt>0))it.pt=1;if(id!=='purchase'){it.sup=null;it.paid=true}drawImport(true)}
-  else if(k==='sup'){it.sup=t.value||null;const d=(supOf(it.sup)||{}).d;it.paid=!(d>0);drawImport(true)}
-  else if(k==='paid'){it.paid=t.value==='1';drawImport(true)}
-  else if(k==='pt'){it.pt=+t.value;drawImport(true)}
-  else if(k==='amt'){const n=parseFloat(String(t.value).replace(/\s/g,'').replace(',','.'));it.amt=n>0?Math.round(n*100)/100:it.amt;t.value=String(it.amt).replace('.',',')}
-  else if(k==='date'){if(t.value)it.date=t.value}
-  else if(k==='note')it.note=t.value;
-  return true;
-}
-function savePhoto(){
-  const ok=R.items.filter(i=>i.on&&!itemBad(i));
-  for(const it of ok){
-    const tx={id:uid(),date:it.date,type:it.type,space:it.space,pt:it.pt||0,cat:it.cat,amt:it.amt,note:it.note};
-    if(it.type==='out'&&it.cat==='purchase'){tx.sup=it.sup;tx.paid=it.paid;if(!it.paid)tx.due=ymd(addDays(parse(it.date),(supOf(it.sup)||{}).d||14))}
-    S.tx.push(tx);
-  }
-  save();R=null;drawImport();render();toast(`Записано операций: ${ok.length}`);
 }
 
 
@@ -1589,7 +1459,21 @@ async function rpc(fn,args){
   return r.json();
 }
 const payload=()=>{const d={...S};delete d.sync;delete d.demo;return d};
-const rndCode=()=>{const a=new Uint8Array(20);(crypto||window.crypto).getRandomValues(a);return Array.from(a,b=>(b%36).toString(36)).join('')+Date.now().toString(36)};
+const CODE_AL='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const rndCode=()=>{const a=new Uint8Array(20);crypto.getRandomValues(a);return Array.from(a,b=>CODE_AL[b%CODE_AL.length]).join('')};
+const fmtCode=c=>String(c||'').replace(/(.{4})(?=.)/g,'$1-');
+const normCode=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const LS_FAM='raiskiy-fin-fam-v1';
+const getFam=()=>{try{return localStorage.getItem(LS_FAM)}catch(e){return null}};
+async function loginWith(raw){
+  const code=normCode(raw);
+  if(code.length<16)throw new Error('short');
+  const o=await rpc('fin_pull',{p_owner:code});
+  if(o&&o.data&&Array.isArray(o.data.tx)){S=Object.assign(defaults(),o.data,{sync:{owner:code,ver:o.version},demo:false});persist();return'owner'}
+  const f=await rpc('fin_member_view',{p_code:code});
+  if(f&&f.member){try{localStorage.setItem(LS_FAM,code)}catch(e){}return 'family'}
+  throw new Error('nf');
+}
 function mergeData(loc,srv){
   const del=new Set([...(loc.del||[]),...(srv.del||[])]);
   const map=new Map();
@@ -1618,7 +1502,7 @@ async function syncNow(){
   syncBusy=false;if(syncQueued){syncQueued=false;scheduleSync()}
 }
 async function syncPull(){
-  if(!syncOn()||syncBusy||M||Cd||Rc||R||PP)return;
+  if(!syncOn()||syncBusy||M||Cd||Rc||PP)return;
   try{
     const res=await rpc('fin_pull',{p_owner:S.sync.owner});
     if(!res){await syncNow();return}
@@ -1651,22 +1535,36 @@ function settingsExtra(){
     <div class="field"><label>Забираю домой в месяц</label><input class="inp" id="planHome" inputmode="numeric" value="${S.plan.home||''}" placeholder="например 300000"></div>
     <div class="field"><label>Откладываю в подушку в месяц</label><input class="inp" id="planSave" inputmode="numeric" value="${S.plan.save||''}" placeholder="например 40000"></div>
     <div class="note">Из этого считается «Свободно на сегодня»: бюджет месяца минус всё, что уже потрачено, делённое на оставшиеся дни.</div></div>`;
-  const mem=syncOn()?`<div class="btns"><button class="btn" data-act="copy-owner">${icon('upload',22)}Ссылка для входа с другого устройства</button></div>
-    <div class="sub-h">Кабинеты семьи</div>
-    ${S.members.map(m=>`<div class="recrow"><div class="recline"><input class="inp" data-mem="${m.id}" data-k="name" value="${esc(m.name)}" placeholder="Имя"><input class="inp" inputmode="numeric" data-mem="${m.id}" data-k="limit" value="${m.limit||''}" placeholder="Лимит в месяц"><button class="xbtn" style="width:42px;height:42px;flex:none" data-act="del-mem" data-id="${m.id}" aria-label="Удалить">${icon('x',18,2)}</button></div><button class="btn" data-act="copy-mem" data-id="${m.id}">Скопировать ссылку для кабинета</button></div>`).join('')||'<div class="note" style="margin-top:0">Добавьте члена семьи, и у него появится своя ссылка с личным лимитом и общим обзором.</div>'}
-    <button class="btn" style="width:100%;margin-top:10px" data-act="add-mem">${icon('plus',20,2.2)}Добавить члена семьи</button>
-    <div class="limrow" style="margin-top:12px"><b>Показывать подушку в кабинетах</b><button class="btn ${S.cabinet.cushion?'btn-dark':''}" style="height:44px;padding:0 18px" data-act="cab-cushion">${S.cabinet.cushion?'Да':'Нет'}</button></div>
-    <div class="btns" style="margin-top:12px"><button class="btn red" data-act="sync-off">Отключить синхронизацию</button></div>`
-    :`<div class="note" style="margin-top:0">Включите синхронизацию: данные сохранятся на сервере и не пропадут вместе с телефоном, заработает вход с ноутбука и личные кабинеты для семьи.</div><button class="btn btn-dark" style="width:100%;margin-top:12px" data-act="sync-on">Включить синхронизацию</button>`;
-  const sync=`<div class="card"><div class="card-h"><div><h3>Семья и вход</h3><p>Личные кабинеты с лимитами</p></div><span class="pill ${syncOn()&&!S.sync.err?'':'mute'}">${syncOn()?(S.sync.err||'включено'):'выключено'}</span></div>${mem}</div>`;
+  const fam=S.members[0];
+  const mem=syncOn()?`<div class="codebox"><small>Код входа для мамы</small><b class="num">${fmtCode(S.sync.owner)}</b><div class="iline"><button class="btn" data-act="copy-code" data-v="${S.sync.owner}">Скопировать код</button><button class="btn" data-act="copy-owner">Ссылка</button></div></div>
+    <div class="codebox"><small>Код для семьи (только просмотр)</small>${fam?`<b class="num">${fmtCode(fam.code)}</b><div class="iline"><button class="btn" data-act="copy-code" data-v="${fam.code}">Скопировать код</button><button class="btn" data-act="copy-fam">Ссылка</button></div><button class="btn" style="margin-top:8px;width:100%" data-act="regen-fam">Сменить код семьи</button>`:`<button class="btn btn-dark" style="width:100%" data-act="regen-fam">Создать код для семьи</button>`}</div>
+    <div class="limrow"><b>Показывать подушку семье</b><button class="btn ${S.cabinet.cushion?'btn-dark':''}" style="height:44px;padding:0 18px" data-act="cab-cushion">${S.cabinet.cushion?'Да':'Нет'}</button></div>
+    <div class="btns" style="margin-top:12px"><button class="btn" data-act="logout">Выйти на этом устройстве</button><button class="btn red" data-act="sync-off">Отключить синхронизацию</button></div>`
+    :`<div class="note" style="margin-top:0">Включите синхронизацию: данные сохранятся на сервере, а вход будет по коду. Один код для мамы, другой для семьи (только просмотр лимитов и расходов).</div><button class="btn btn-dark" style="width:100%;margin-top:12px" data-act="sync-on">Включить синхронизацию</button>`;
+  const sync=`<div class="card"><div class="card-h"><div><h3>Вход по коду</h3><p>Для мамы и для семьи</p></div><span class="pill ${syncOn()&&!S.sync.err?'':'mute'}">${syncOn()?(S.sync.err||'включено'):'выключено'}</span></div>${mem}</div>`;
   const pin=`<div class="card"><div class="card-h"><div><h3>Защита от чужих глаз</h3><p>PIN при открытии приложения</p></div><span class="pill ${getPin()?'':'mute'}">${getPin()?'включён':'выключен'}</span></div>
     <div class="btns">${getPin()?`<button class="btn" data-act="pin-change">Сменить PIN</button><button class="btn red" data-act="pin-off">Убрать PIN</button>`:`<button class="btn" data-act="pin-set">Поставить PIN</button>`}</div>
     <div class="note">PIN прячет экран от посторонних. Это не шифрование данных.</div></div>`;
   return{plan,sync,pin};
 }
 
-/* ---------- кабинет члена семьи ---------- */
-let CAB=null,CA=null;
+/* ---------- вход, экран приветствия, кабинет семьи ---------- */
+let CAB=null;
+function showWelcome(){
+  $('#root').innerHTML=`<div class="cabwrap" style="padding-top:7vh">
+    <div class="cabtop" style="flex-direction:column;text-align:center;gap:10px"><div class="logo-mark" style="width:68px;height:68px;border-radius:21px">${icon('leaf',36,1.9)}</div><div><h1>Райский уголок</h1><p class="date">Финансы</p></div></div>
+    <div class="card"><div class="field" style="margin-bottom:10px"><label>Код входа</label><input class="inp codein" id="loginCode" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false"></div><div class="lockerr" id="loginErr"></div><button class="cta" style="width:100%;flex:none" data-act="login">Войти</button></div>
+    <button class="btn" data-act="login-demo">Посмотреть пример без входа</button></div>`;
+}
+async function doLogin(){
+  const inp=$('#loginCode'),err=$('#loginErr');if(!inp)return;
+  err.textContent='Проверяю…';
+  try{
+    const kind=await loginWith(inp.value);
+    if(kind==='owner'){history.replaceState(null,'',baseUrl());startApp()}
+    else cabinetMain(getFam());
+  }catch(e){err.textContent=e.message==='short'?'Код слишком короткий':e.message==='nf'?'Код не найден. Проверьте и попробуйте ещё раз.':'Нет связи. Проверьте интернет.'}
+}
 async function cabinetMain(code){
   CAB={code};
   $('#root').innerHTML='<div class="cabwrap"><div class="loadbox"><div class="spin"></div><b>Загружаю…</b></div></div>';
@@ -1675,61 +1573,47 @@ async function cabinetMain(code){
 async function cabLoad(){
   try{
     const v=await rpc('fin_member_view',{p_code:CAB.code});
-    if(!v||!v.member)CAB.err='Ссылка не найдена или отключена. Попросите новую у владельца.';else{CAB.v=v;CAB.err=''}
+    if(!v||!v.member)CAB.err='Код не найден или отключён. Попросите новый.';else{CAB.v=v;CAB.err=''}
   }catch(e){CAB.err='Нет связи. Проверьте интернет и обновите.'}
   cabRender();
 }
 function cabRender(){
   const root=$('#root');
-  if(CAB.err){root.innerHTML=`<div class="cabwrap"><div class="card"><div class="empty"><b>Не получилось открыть</b>${esc(CAB.err)}</div><button class="btn" style="width:100%" data-act="cab-reload">Обновить</button></div></div>`;return}
-  const v=CAB.v,mem=v.member,T=today(),ms=ymd(new Date(T.getFullYear(),T.getMonth(),1));
-  const tx=(v.tx||[]).filter(x=>x.date>=ms&&x.type==='out');
-  const mine=tx.filter(x=>x.who===mem.id).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:(a.id<b.id?1:-1));
-  const spent=mine.reduce((n,x)=>n+x.amt,0),lim=+mem.limit||0,left=lim-spent;
-  const dl=dim(T.getFullYear(),T.getMonth())-T.getDate()+1,pc=lim?Math.min(100,spent/lim*100):0;
-  const byCat={};tx.forEach(x=>{byCat[x.cat]=(byCat[x.cat]||0)+x.amt});
+  if(CAB.err){root.innerHTML=`<div class="cabwrap"><div class="card"><div class="empty"><b>Не получилось открыть</b>${esc(CAB.err)}</div><div class="btns"><button class="btn" data-act="cab-reload">Обновить</button><button class="btn" data-act="cab-logout">Ввести другой код</button></div></div></div>`;return}
+  const v=CAB.v,T=today(),ms=ymd(new Date(T.getFullYear(),T.getMonth(),1));
+  const tx=(v.tx||[]).filter(x=>x.type==='out');
+  const mon=tx.filter(x=>x.date>=ms);
+  const spent=mon.reduce((n,x)=>n+x.amt,0);
+  const dl=dim(T.getFullYear(),T.getMonth())-T.getDate()+1;
+  const byCat={};mon.forEach(x=>{byCat[x.cat]=(byCat[x.cat]||0)+x.amt});
   const lims=Object.entries(v.limits||{}).filter(([id,l])=>l>0&&LIM_FAM.includes(id)).map(([id,l])=>({id,lim:l,used:byCat[id]||0})).sort((a,b)=>b.used/b.lim-a.used/a.lim);
+  const totLim=lims.reduce((n,l)=>n+l.lim,0),totUsed=lims.reduce((n,l)=>n+l.used,0);
+  const plan=v.plan||{},budget=(plan.home||0)-(plan.save||0);
+  let heroLabel,heroVal,heroSub,pc,over;
+  if(budget>0){const rest=budget-spent;over=rest<0;heroLabel=over?'Перерасход бюджета':'Свободно на сегодня';heroVal=over?money(-rest):money(Math.floor(Math.max(0,rest)/dl/10)*10);heroSub=`Бюджет месяца ${money(budget)} · потрачено ${money(spent)}`;pc=Math.min(100,spent/budget*100)}
+  else if(totLim>0){const rest=totLim-totUsed;over=rest<0;heroLabel=over?'Перерасход по лимитам':'Осталось по лимитам';heroVal=money(Math.abs(rest));heroSub=over?'Лимиты месяца превышены':`≈ ${money(Math.floor(Math.max(0,rest)/dl/10)*10)} в день до конца месяца`;pc=Math.min(100,totUsed/totLim*100)}
+  else{heroLabel='Расходы семьи';heroVal=money(spent);heroSub='за этот месяц';pc=0;over=false}
   const cu=v.pub&&v.showCushion==='true'?v.pub:null,cpc=cu?Math.min(100,cu.cushion/cu.goal*100):0;
+  const recent=tx.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:((a.ts||0)<(b.ts||0)?1:-1)).slice(0,15);
   root.innerHTML=`<div class="cabwrap">
-    <div class="cabtop"><div class="logo-mark">${icon('leaf',26,1.9)}</div><div><h1>Привет, ${esc(mem.name||'')}</h1><p class="date">${esc(v.name||'Райский уголок')} · ${T.getDate()} ${MG[T.getMonth()]}</p></div></div>
-    <div class="stat hero cabhero"><div class="stat-label" style="padding-top:0;margin:0">Мой лимит на месяц</div>
-      <div class="stat-val num" style="font-size:42px;margin:8px 0 4px">${lim?money(Math.max(left,0)):'не задан'}</div>
-      <div class="stat-sub" style="margin-top:0">${lim?(left<0?`Перерасход ${money(-left)}`:`осталось из ${money(lim)}${left>0?` · ≈ ${money(Math.floor(left/dl/10)*10)} в день`:''}`):'Попросите задать лимит'}</div>
-      ${lim?`<div class="track ondark"><i class="${left<0?'over':''}" style="width:${pc}%"></i></div>`:''}</div>
-    <button class="closecta" data-act="ca-open"><span class="qic">${icon('plus',26,2.2)}</span><span><b>Записать трату</b><small>Чтобы лимит считался честно</small></span></button>
-    <div class="card"><div class="card-h"><div><h3>Мои траты</h3><p>${MN[T.getMonth()]}: потрачено ${money(spent)}</p></div></div>
-      ${mine.length?mine.slice(0,12).map(x=>`<div class="crow"><span class="rico">${icon(catById(x.cat).i,20)}</span><span class="rmid"><div class="rn">${esc(catById(x.cat).n)}</div><div class="rs">${esc([x.note,dayLabel(x.date)].filter(Boolean).join(' · '))}</div></span><span class="ra num">−${money(x.amt)}</span></div>`).join(''):'<div class="empty"><b>Пока нет трат</b>Записывайте, когда тратите из семейных денег.</div>'}
+    <div class="cabtop"><div class="logo-mark">${icon('leaf',26,1.9)}</div><div><h1>Семья</h1><p class="date">${esc(v.name||'Райский уголок')} · ${T.getDate()} ${MG[T.getMonth()]}</p></div></div>
+    <div class="stat hero cabhero"><div class="stat-label" style="padding-top:0;margin:0">${heroLabel}</div>
+      <div class="stat-val num" style="font-size:42px;margin:8px 0 4px">${heroVal}</div>
+      <div class="stat-sub" style="margin-top:0">${heroSub}</div>
+      ${pc?`<div class="track ondark"><i class="${over?'over':''}" style="width:${pc}%"></i></div>`:''}</div>
+    ${lims.length?`<div class="card"><div class="card-h"><div><h3>Лимиты</h3><p>${MN[T.getMonth()]}, общие траты семьи</p></div></div>${lims.map(l=>{const p=l.used/l.lim*100;return `<div class="lim"><div class="lim-h"><span class="rico">${icon(catById(l.id).i,20)}</span><b>${esc(catById(l.id).n)}</b><span class="num">${fmt(l.used)} / ${fmt(l.lim)}</span></div><div class="track"><i class="${p>100?'over':p>80?'warn':''}" style="width:${Math.min(p,100)}%"></i></div></div>`}).join('')}</div>`:''}
+    <div class="card"><div class="card-h"><div><h3>Расходы</h3><p>Потрачено в этом месяце: ${money(spent)}</p></div></div>
+      ${recent.length?recent.map(x=>`<div class="crow"><span class="rico">${icon(catById(x.cat).i,20)}</span><span class="rmid"><div class="rn">${esc(catById(x.cat).n)}</div><div class="rs">${esc([x.note,dayLabel(x.date)].filter(Boolean).join(' · '))}</div></span><span class="ra num">−${money(x.amt)}</span></div>`).join(''):'<div class="empty"><b>Пока нет трат</b></div>'}
     </div>
-    ${lims.length?`<div class="card"><div class="card-h"><div><h3>Лимиты семьи</h3><p>Общие траты за месяц</p></div></div>${lims.map(l=>{const p=l.used/l.lim*100;return `<div class="lim"><div class="lim-h"><span class="rico">${icon(catById(l.id).i,20)}</span><b>${esc(catById(l.id).n)}</b><span class="num">${fmt(l.used)} / ${fmt(l.lim)}</span></div><div class="track"><i class="${p>100?'over':p>80?'warn':''}" style="width:${Math.min(p,100)}%"></i></div></div>`}).join('')}</div>`:''}
     ${cu?`<div class="card"><div class="card-h"><div><h3>Подушка безопасности</h3><p>Цель семьи</p></div></div><div class="lim-h" style="margin-bottom:10px"><b style="font-size:22px">${Math.round(cpc)}%</b><span>${money(cu.cushion)} из ${money(cu.goal)}</span></div><div class="track"><i style="width:${cpc}%"></i></div></div>`:''}
-    <button class="btn" style="width:100%" data-act="cab-reload">Обновить</button>
+    <div class="btns"><button class="btn" data-act="cab-reload">Обновить</button><button class="btn" data-act="cab-logout">Выйти</button></div>
   </div>`;
-}
-function caDraw(){
-  const el=$('#modal');if(!CA){el.innerHTML='';document.body.style.overflow='';return}
-  el.innerHTML=`<div class="ov"><div class="sheet" style="width:min(520px,100%)"><div class="sh-head"><h3>Записать трату</h3><button class="xbtn" data-act="ca-close" aria-label="Закрыть">${icon('x',22,2)}</button></div>
-   <div class="sh-body" style="grid-template-columns:minmax(0,1fr)"><div style="display:flex;flex-direction:column;gap:12px;min-width:0">
-    <div class="field" style="margin:0"><label>Сумма, ${esc(S.cur)}</label><input class="inp" id="caAmt" inputmode="decimal" value="${esc(CA.amt)}" placeholder="0" style="font-size:26px;height:66px" autocomplete="off"></div>
-    <div class="lbl">На что</div><div class="cats">${CATS.out_family.map(c=>`<button class="cat ${CA.cat===c.id?'on':''}" data-act="ca-cat" data-v="${c.id}"><span class="ci">${icon(c.i,22)}</span>${c.n}</button>`).join('')}</div>
-    <input class="inp" id="caNote" placeholder="Заметка, необязательно" value="${esc(CA.note)}" maxlength="80" autocomplete="off"></div></div>
-   <div class="sh-foot"><button class="cta" data-act="ca-save">Записать</button></div></div></div>`;
-  document.body.style.overflow='hidden';
-}
-async function caSave(){
-  const n=numVal($('#caAmt')?.value??CA.amt);
-  if(!(n>0)){toast('Впишите сумму');return}
-  if(!CA.cat){toast('Выберите, на что');return}
-  try{
-    const r=await rpc('fin_member_add',{p_code:CAB.code,p_tx:{amt:n,cat:CA.cat,note:($('#caNote')?.value??CA.note).trim(),date:ymd(today())}});
-    if(!r||!r.ok)throw 0;
-    CA=null;caDraw();toast('Записано');await cabLoad();
-  }catch(e){toast('Не получилось записать. Проверьте интернет')}
 }
 
 /* ---------- события ---------- */
 document.addEventListener('click',e=>{
   const ov=e.target.classList&&e.target.classList.contains('ov')?e.target:null;
-  if(ov&&ov.closest('#modal')){if(R){R=null;drawImport()}else if(Cd){Cd=null;drawClose()}else if(Rc){Rc=null;drawRecon()}else if(CA){CA=null;caDraw()}else{M=null;drawModal()}return}
+  if(ov&&ov.closest('#modal')){if(Cd){Cd=null;drawClose()}else if(Rc){Rc=null;drawRecon()}else{M=null;drawModal()}return}
   const el=e.target.closest('[data-act]');
   if(!el){hideTip();return}
   const act=el.dataset.act,v=el.dataset.v;
@@ -1779,13 +1663,16 @@ document.addEventListener('click',e=>{
     case 'rc-pot':Rc.val=$('#rcVal')?.value??'';Rc.pot=v;drawRecon();break;
     case 'rc-save':saveRecon();break;
     case 'm-also':M.note=$('#noteIn')?.value??M.note;M.also=!M.also;drawModal(true);break;
-    case 'm-who':M.note=$('#noteIn')?.value??M.note;M.who=v||null;drawModal(true);break;
-    case 'sync-on':if(S.demo){toast('Сначала нажмите «Начать с нуля»');break}S.sync={owner:rndCode(),ver:0};saveCfg();render();toast('Синхронизация включена');break;
+        case 'sync-on':if(S.demo){toast('Сначала нажмите «Начать с нуля»');break}S.sync={owner:rndCode(),ver:0};S.members=[{id:'family',name:'Семья',limit:0,code:rndCode()}];saveCfg();render();toast('Синхронизация включена');break;
     case 'sync-off':ask('Отключить синхронизацию?','Данные останутся на этом устройстве, но кабинеты семьи перестанут обновляться.','Отключить',()=>{S.sync={owner:'',ver:0};persist();render()});break;
     case 'copy-owner':copyText(baseUrl()+'#o='+S.sync.owner,'Ссылка скопирована. Никому её не показывайте');break;
-    case 'add-mem':S.members.push({id:'m'+uid(),name:'Новый',limit:0,code:rndCode()});saveCfg();render();break;
-    case 'del-mem':ask('Удалить кабинет?','Ссылка этого человека перестанет работать.','Удалить',()=>{S.members=S.members.filter(m=>m.id!==el.dataset.id);saveCfg();render()});break;
-    case 'copy-mem':{const m=S.members.find(x=>x.id===el.dataset.id);if(m)copyText(baseUrl()+'#f='+m.code,'Ссылка для '+m.name+' скопирована');break}
+    case 'copy-code':copyText(fmtCode(v),'Код скопирован');break;
+    case 'copy-fam':copyText(baseUrl()+'#f='+S.members[0].code,'Ссылка для семьи скопирована');break;
+    case 'regen-fam':{const go=()=>{S.members=[{id:'family',name:'Семья',limit:0,code:rndCode()}];saveCfg();render()};if(S.members[0])ask('Сменить код семьи?','Старый код перестанет работать, нужно будет отправить новый.','Сменить',go);else go();break}
+    case 'logout':ask('Выйти на этом устройстве?','Данные на сервере останутся. На этом устройстве всё будет стёрто, войти снова можно по коду.','Выйти',()=>{try{localStorage.removeItem(LS_DATA);localStorage.removeItem(LS_UI);localStorage.removeItem(LS_PIN)}catch(e){}location.reload()});break;
+    case 'login':doLogin();break;
+    case 'login-demo':persist();startApp();break;
+    case 'cab-logout':try{localStorage.removeItem(LS_FAM)}catch(e){}location.href=baseUrl();break;
     case 'cab-cushion':S.cabinet.cushion=!S.cabinet.cushion;saveCfg();render();break;
     case 'pin-set':setPinFlow();break;
     case 'pin-change':verifyPin(setPinFlow);break;
@@ -1793,15 +1680,6 @@ document.addEventListener('click',e=>{
     case 'pin-key':pinKey(v);break;
     case 'pin-cancel':PP=null;drawPin();break;
     case 'cab-reload':cabLoad();break;
-    case 'ca-open':CA={amt:'',cat:null,note:''};caDraw();break;
-    case 'ca-close':CA=null;caDraw();break;
-    case 'ca-cat':CA.amt=$('#caAmt')?.value??CA.amt;CA.note=$('#caNote')?.value??CA.note;CA.cat=v;caDraw();break;
-    case 'ca-save':caSave();break;
-    case 'photo':$('#photoFile').click();break;
-    case 'photo-demo':demoPhoto();break;
-    case 'photo-retry':if(R&&R.file)startPhoto(R.file);break;
-    case 'photo-close':R=null;drawImport();break;
-    case 'photo-save':savePhoto();break;
     case 'exp-csv':exportCSV();break;
     case 'exp-json':exportJSON();break;
     case 'imp-json':$('#file').click();break;
@@ -1815,8 +1693,6 @@ document.addEventListener('input',e=>{
   else if(e.target.id==='noteIn'&&M)M.note=e.target.value;
   else if(e.target.dataset&&e.target.dataset.cd&&Cd)Cd.v[e.target.dataset.cd]=e.target.value;
   else if(e.target.id==='rcVal'&&Rc)Rc.val=e.target.value;
-  else if(e.target.id==='caAmt'&&CA)CA.amt=e.target.value;
-  else if(e.target.id==='caNote'&&CA)CA.note=e.target.value;
 });
 const numVal=v=>{const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:0};
 document.addEventListener('change',e=>{
@@ -1837,16 +1713,12 @@ document.addEventListener('change',e=>{
     else if(d.k==='mon')r.mon=t.value?+t.value:null;
     saveCfg();
   }
-  else if(d.ii!==undefined){importEdit(t)}
   else if(t.id==='planHome'){S.plan.home=Math.max(0,Math.round(numVal(t.value)));saveCfg()}
   else if(t.id==='planSave'){S.plan.save=Math.max(0,Math.round(numVal(t.value)));saveCfg()}
-  else if(d.mem){const m=S.members.find(x=>x.id===d.mem);if(m){if(d.k==='name')m.name=t.value.trim()||'Член семьи';else m.limit=Math.max(0,Math.round(numVal(t.value)));saveCfg()}}
-  else if(t.id==='photoFile'&&t.files[0]){startPhoto(t.files[0]);t.value=''}
-  else if(t.id==='aiUrl'){S.ai.url=t.value.trim();saveCfg();render()}
-  else if(t.id==='aiToken'){S.ai.token=t.value.trim();saveCfg()}
   else if(t.id==='file'&&t.files[0]){importJSON(t.files[0]);t.value=''}
 });
 document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.id==='loginCode'){e.preventDefault();doLogin();return}
   if(PP){if(/^[0-9]$/.test(e.key))pinKey(e.key);else if(e.key==='Backspace')pinKey('del');return}
   if(M){
     const inInput=e.target.tagName==='INPUT';
@@ -1857,7 +1729,7 @@ document.addEventListener('keydown',e=>{
     else if(e.key===','||e.key==='.')key(',');
     else if(e.key==='Backspace')key('del');
     else if(e.key==='Enter'){e.preventDefault();saveTx()}
-  }else if(e.key==='Escape'){if($('#confirm .cf'))closeAsk();else if(R){R=null;drawImport()}}
+  }else if(e.key==='Escape'){if($('#confirm .cf'))closeAsk()}
 });
 /* подсказка над столбцами */
 const tipEl=$('#tip');
@@ -1875,22 +1747,37 @@ document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest
 window.addEventListener('scroll',hideTip,{passive:true});
 window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(['home','ops','reports','settings'].includes(v)&&v!==UI.view){UI.view=v;render(false)}});
 
-(function init(){
-  const h=location.hash;
-  const cm=h.match(/^#f=([A-Za-z0-9]{16,})/);
-  if(cm){document.body.classList.add('cab');cabinetMain(cm[1]);return}
-  const om=h.match(/^#o=([A-Za-z0-9]{16,})/);
-  const v=h.slice(1);
-  if(['home','ops','reports','settings'].includes(v))UI.view=v;
+function startApp(){
   render(false);
   lockNow();
-  if(om){history.replaceState(null,'',location.pathname+location.search);if(om[1]!==(S.sync||{}).owner)joinOwner(om[1])}
   setTimeout(syncPull,800);
-  setInterval(syncPull,60000);
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){hiddenAt=Date.now()}
-    else{if(getPin()&&hiddenAt&&Date.now()-hiddenAt>180000&&!PP)lockNow();syncPull()}
-  });
+  if(!window.__timers){
+    window.__timers=1;
+    setInterval(syncPull,60000);
+    document.addEventListener('visibilitychange',()=>{
+      if(document.hidden){hiddenAt=Date.now()}
+      else{if(getPin()&&hiddenAt&&Date.now()-hiddenAt>180000&&!PP)lockNow();syncPull()}
+    });
+  }
+}
+(function boot(){
+  const h=location.hash;
+  const hasData=(()=>{try{return !!localStorage.getItem(LS_DATA)}catch(e){return false}})();
+  const fm=h.match(/^#f=([A-Za-z0-9]{16,})/),om=h.match(/^#o=([A-Za-z0-9]{16,})/);
+  if(fm){const c=normCode(fm[1]);try{localStorage.setItem(LS_FAM,c)}catch(e){}history.replaceState(null,'',baseUrl());cabinetMain(c);return}
+  const fam=getFam();
+  if(fam&&!hasData){cabinetMain(fam);return}
+  if(om){
+    const c=normCode(om[1]);history.replaceState(null,'',baseUrl());
+    if(hasData&&(S.sync||{}).owner===c){startApp();return}
+    S=defaults();loginWith(c).then(()=>startApp()).catch(()=>{S=loadData();showWelcome();setTimeout(()=>{const e=$('#loginErr');if(e)e.textContent='Ссылка не найдена. Введите код вручную.'},0)});
+    $('#root').innerHTML='<div class="cabwrap"><div class="loadbox"><div class="spin"></div><b>Входим…</b></div></div>';
+    return;
+  }
+  if(!hasData){showWelcome();return}
+  const v=h.slice(1);
+  if(['home','ops','reports','settings'].includes(v))UI.view=v;
+  startApp();
 })();
 </script>
 </body>
